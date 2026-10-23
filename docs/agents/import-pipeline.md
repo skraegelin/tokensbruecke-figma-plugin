@@ -24,6 +24,9 @@ for each top-level key (= collection name, object values only):
                                              $type takes the $type of its closest group, an untyped alias the type of
                                              the token it references; a $value with no type at all is reported as "missing type"
   meta   = $extensions['tokens-bruecke-meta'] of the collection group (split files) or of the root
+  an existing extended collection (isExtension): its variableIds (owned by the root collection) are in variableMap
+           under the extension's name; values go to the extension's mode ids (= overrides); no new variables,
+           no renamed or added modes, no description/scopes changes on the inherited variables
   modes  = union of $extensions.mode (or extensions.mode) keys, in first-seen order;
            without them, meta.mode (a split-by-mode file) selects or adds the mode that `$value` is written to
     rename collection.modes[0] to the first mode name; addMode() for the missing ones; re-fetch collection

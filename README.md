@@ -123,7 +123,7 @@ The plugin supports both **exporting** and **importing** design tokens:
 - A file of a [split-by-mode export](#split-modes-into-separate-files) carries its mode in the meta, so its values go into that mode of the collection, which is added if it's missing. Import the files one by one; the first one imported into a new collection becomes its default mode.
 - An existing collection's first mode is renamed to the first mode in the tokens.
 - Units are dropped from dimensions, since Figma number variables have no unit: `1rem` imports as `1`.
-- Extended collections are imported as regular collections.
+- Extended collections are imported as regular collections when they don't exist in the file yet. If the extended collection exists, its tokens update the variables it inherits: the values become overrides for its modes. New variables and modes can't be added to an extended collection, so those tokens are reported as errors.
 - An existing variable keeps its type. A token of another type, for example a `dimension` token for a color variable, is skipped and listed in the import result.
 
 > [!WARNING]  

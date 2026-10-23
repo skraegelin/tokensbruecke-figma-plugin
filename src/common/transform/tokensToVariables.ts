@@ -793,6 +793,24 @@ export const tokensToVariables = async (
       }
     });
 
+    // An extended collection lists the variables it inherits, which belong
+    // to its root collection. Its tokens update those variables, with the
+    // values written as overrides for the extension's modes
+    existingCollections
+      .filter((collection) => (collection as any).isExtension)
+      .forEach((extension) => {
+        extension.variableIds?.forEach((variableId) => {
+          const variable = existingVariables.find((v) => v.id === variableId);
+          if (variable) {
+            variableMap.set(`${extension.name}/${variable.name}`, variable);
+            variableMap.set(
+              `${toTokenName(extension.name)}/${variable.name}`,
+              variable
+            );
+          }
+        });
+      });
+
     // The meta sits at the root of a file, or inside the collection group
     // in the files of a split export
     const metaOf = (collectionData: any) =>
@@ -906,8 +924,30 @@ export const tokensToVariables = async (
           }
         });
 
+        // An extended collection inherits its modes: they can't be renamed
+        // or added, so the tokens have to use the existing mode names
+        const isExtension = (collection as any).isExtension === true;
+        const missingModes = [
+          ...Array.from(modesData.keys()),
+          ...(fileModeName ? [fileModeName] : []),
+        ].filter((name) => !collection.modes.some((m) => m.name === name));
+        if (isExtension && missingModes.length > 0) {
+          result.errors.push(
+            `Extended collection "${collectionName}" has no mode ${missingModes
+              .map((name) => `"${name}"`)
+              .join(
+                ', '
+              )}: its values were skipped. Extended collections inherit their modes from their parent.`
+          );
+        }
+
         // Create modes if they don't exist (only in plugin context)
-        if (modesData.size > 0 && typeof figma !== 'undefined' && collection) {
+        if (
+          modesData.size > 0 &&
+          !isExtension &&
+          typeof figma !== 'undefined' &&
+          collection
+        ) {
           const modeNames = Array.from(modesData.keys());
 
           // Check if the first mode needs to be renamed
@@ -958,6 +998,7 @@ export const tokensToVariables = async (
         if (
           fileModeName &&
           modesData.size === 0 &&
+          !(isExtension && missingModes.length > 0) &&
           typeof figma !== 'undefined' &&
           collection
         ) {
@@ -1032,6 +1073,13 @@ export const tokensToVariables = async (
               continue;
             }
 
+            if (!variable && isExtension) {
+              result.errors.push(
+                `Variable "${path}" is not in the extended collection "${collectionName}": skipped. Add it to the root collection.`
+              );
+              continue;
+            }
+
             if (!variable && typeof figma !== 'undefined' && collection) {
               // Create new variable - pass collection object, not ID
               variable = figma.variables.createVariable(
@@ -1051,7 +1099,9 @@ export const tokensToVariables = async (
               tokenScopes = getDefaultScopes(tokenType);
             }
 
-            if (variable) {
+            // The description and scopes of an inherited variable belong to
+            // its root collection
+            if (variable && !isExtension) {
               if (tokenDescription) {
                 variable.description = tokenDescription;
               }

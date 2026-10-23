@@ -1018,3 +1018,86 @@ describe('tokensToVariables split-by-mode files', () => {
     expect(valuesOf('bg')).toEqual({ Dark: 2, Light: 1 });
   });
 });
+
+describe('tokensToVariables extended collections', () => {
+  let fake: ReturnType<typeof createFakeFigma>;
+
+  beforeEach(() => {
+    fake = createFakeFigma();
+    vi.stubGlobal('figma', fake);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // "Brand B" extends "Theme": it lists the variables of Theme and has its
+  // own mode ids for the inherited modes
+  const setUp = () => {
+    const theme = fake.variables.createVariableCollection('Theme');
+    theme.renameMode(theme.modes[0].modeId, 'Light');
+    const bg = fake.variables.createVariable('bg', theme, 'FLOAT');
+    bg.setValueForMode(theme.modes[0].modeId, 1);
+    const extension = {
+      id: 'VariableCollectionId:ext',
+      name: 'Brand B',
+      isExtension: true,
+      modes: [
+        {
+          modeId: 'ext:light',
+          name: 'Light',
+          parentModeId: theme.modes[0].modeId,
+        },
+      ],
+      defaultModeId: 'ext:light',
+      variableIds: [bg.id],
+    };
+    fake._collections.push(extension);
+    return { theme, bg, extension };
+  };
+
+  const fileResolver = {
+    getLocalVariableCollections: async () => fake._collections,
+    getLocalVariables: async () => fake._variables,
+  } as unknown as IResolver;
+
+  test('writes the values as overrides of the inherited variables', async () => {
+    const { theme, bg } = setUp();
+
+    const result = await tokensToVariables(
+      { 'Brand B': { bg: { $type: 'number', $value: 5 } } },
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.variablesCreated).toBe(0);
+    expect(result.variablesUpdated).toBe(1);
+    expect(fake._variables).toHaveLength(1);
+    expect(bg.valuesByMode['ext:light']).toBe(5);
+    expect(bg.valuesByMode[theme.modes[0].modeId]).toBe(1);
+  });
+
+  test('does not create variables or modes in the extension', async () => {
+    const { extension } = setUp();
+
+    const result = await tokensToVariables(
+      {
+        'Brand B': {
+          extra: {
+            $type: 'number',
+            $value: 2,
+            $extensions: { mode: { Light: 2, Dark: 3 } },
+          },
+        },
+      },
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([
+      'Extended collection "Brand B" has no mode "Dark": its values were skipped. Extended collections inherit their modes from their parent.',
+      'Variable "extra" is not in the extended collection "Brand B": skipped. Add it to the root collection.',
+    ]);
+    expect(fake._variables).toHaveLength(1);
+    expect(extension.modes).toHaveLength(1);
+  });
+});
