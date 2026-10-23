@@ -174,6 +174,35 @@ describe('style aliases', () => {
     );
   });
 
+  it('keep the paint opacity of a color style bound to a variable', async () => {
+    const translucent: IResolver = {
+      ...resolver,
+      getLocalPaintStyles: async () =>
+        [
+          {
+            id: 'S:1',
+            name: 'brand',
+            paints: [
+              { type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: 0.5 },
+            ],
+            boundVariables: { paints: [alias] },
+          },
+        ] as unknown as PaintStyle[],
+    };
+
+    const tokens = await getTokens(translucent, config);
+    const percent = await getTokens(translucent, {
+      ...config,
+      usePercentageOpacity: true,
+    });
+
+    expect(tokens['Color-styles'].brand.$value).toEqual({
+      components: '{Core.color.brand}',
+      alpha: 0.5,
+    });
+    expect(percent['Color-styles'].brand.$value.alpha).toBe('50%');
+  });
+
   it('leave the collection name out with omitCollectionNames, like variable aliases', async () => {
     const tokens = await getTokens(resolver, {
       ...config,

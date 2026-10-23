@@ -986,7 +986,7 @@ A style the plugin can't export, such as an image fill or a color style with sev
 
 ### Colors
 
-The plugin supports solid colors and gradients (linear, radial, angular, diamond). Color styles are converted to DTCG format with support for variable aliases.
+The plugin supports solid colors and gradients (linear, radial, angular, diamond). Color styles are converted to DTCG format with support for variable aliases. A solid style bound to a color variable with its own opacity below 100% is exported like a [color alias with opacity](#color-aliases-with-opacity): `{ "components": "{color.brand}", "alpha": 0.5 }`.
 
 ```json
 // Solid color
