@@ -618,6 +618,46 @@ describe('tokensToVariables references and existing variables', () => {
     expect(fake._variables).toHaveLength(2);
   });
 
+  test('takes the type of a token from its groups', async () => {
+    const result = await tokensToVariables(
+      {
+        Core: {
+          color: {
+            $type: 'color',
+            red: { $value: '#ff0000' },
+            brand: { $value: '{Core.color.red}' },
+          },
+          space: {
+            $type: 'dimension',
+            sm: { $value: { value: 4, unit: 'px' } },
+            nested: { md: { $value: { value: 8, unit: 'px' } } },
+          },
+          gap: { $value: '{Core.space.sm}' },
+        },
+      },
+      resolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(byName('color/red').resolvedType).toBe('COLOR');
+    expect(defaultValueOf('color/red')).toEqual({ r: 1, g: 0, b: 0, a: 1 });
+    expect(byName('space/nested/md').resolvedType).toBe('FLOAT');
+    expect(defaultValueOf('space/nested/md')).toBe(8);
+    expect(defaultValueOf('gap')).toEqual({
+      type: 'VARIABLE_ALIAS',
+      id: byName('space/sm').id,
+    });
+  });
+
+  test('reports a token without any type instead of dropping it', async () => {
+    const result = await tokensToVariables(
+      { Core: { size: { $value: { value: 4, unit: 'px' } } } },
+      resolver
+    );
+
+    expect(result.errors).toEqual(['Token at path "size" is missing type']);
+  });
+
   test('still reads tokens in the legacy format', async () => {
     const result = await tokensToVariables(
       {

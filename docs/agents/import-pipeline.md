@@ -20,7 +20,9 @@ for each top-level key (= collection name, object values only):
   meta.variableCollections entry ("1- Primitives") uses that Figma name ("1. Primitives"); existing variables are
   mapped under both names
   tokens = extractTokens(group)              recursive; skips $-keys except `$root` (the group's own token), and value/type/description/scopes/extensions only inside a token (in a group they are names); also descends into tokens, for child tokens of older exports; references drop a trailing `.$root`;
-                                             a "token" has a value ($value|value) AND a determinable type
+                                             a "token" has a value ($value|value) AND a determinable type; a token without
+                                             $type takes the $type of its closest group, an untyped alias the type of
+                                             the token it references; a $value with no type at all is reported as "missing type"
   modes  = union of $extensions.mode (or extensions.mode) keys, in first-seen order
     rename collection.modes[0] to the first mode name; addMode() for the missing ones; re-fetch collection
   PASS 1  for each token:

@@ -563,12 +563,27 @@ const legacyTokenKeys = [
 ];
 
 /**
+ * A DTCG token can leave out `$type` and take it from the closest group
+ * (format §6.4: type inheritance), so the token is copied with that type.
+ */
+const withInheritedType = (token: any, inheritedType: string | undefined) =>
+  inheritedType &&
+  token &&
+  typeof token === 'object' &&
+  token.$value !== undefined &&
+  token.$type === undefined &&
+  token.type === undefined
+    ? { ...token, $type: inheritedType }
+    : token;
+
+/**
  * Extracts all tokens from a nested object structure
  */
 const extractTokens = (
   obj: any,
   path: string[] = [],
-  collectionName: string
+  collectionName: string,
+  inheritedType?: string
 ): Array<{ path: string; token: any; collectionName: string }> => {
   const tokens: Array<{ path: string; token: any; collectionName: string }> =
     [];
@@ -579,12 +594,17 @@ const extractTokens = (
   const isTokenLike =
     obj.$value !== undefined ||
     (obj.value !== undefined && !isToken(obj.value));
+  const groupType =
+    !isTokenLike && typeof obj.$type === 'string' ? obj.$type : inheritedType;
 
   for (const key in obj) {
     // DTCG 2025.10: the token of the group itself, i.e. the variable named
     // like the group ("border/brand" next to "border/brand/subtle")
-    if (key === ROOT_TOKEN_KEY && path.length > 0 && isToken(obj[key])) {
-      tokens.push({ path: path.join('/'), token: obj[key], collectionName });
+    if (key === ROOT_TOKEN_KEY && path.length > 0) {
+      const rootToken = withInheritedType(obj[key], groupType);
+      if (isToken(rootToken) || rootToken?.$value !== undefined) {
+        tokens.push({ path: path.join('/'), token: rootToken, collectionName });
+      }
       continue;
     }
 
@@ -592,21 +612,72 @@ const extractTokens = (
       continue; // Skip metadata keys
     }
 
-    const value = obj[key];
+    const value = withInheritedType(obj[key], groupType);
 
-    if (isToken(value)) {
+    // A `$value` without any type is still listed, so the import reports it
+    // as "missing type" instead of dropping it silently
+    if (isToken(value) || value?.$value !== undefined) {
       const tokenPath = [...path, key].join('/');
       tokens.push({ path: tokenPath, token: value, collectionName });
       // Older exports, and the legacy format, put such child tokens into
       // the token object itself
-      tokens.push(...extractTokens(value, [...path, key], collectionName));
+      tokens.push(
+        ...extractTokens(value, [...path, key], collectionName, groupType)
+      );
     } else if (typeof value === 'object' && value !== null) {
       // Recursively extract from nested objects
-      tokens.push(...extractTokens(value, [...path, key], collectionName));
+      tokens.push(
+        ...extractTokens(value, [...path, key], collectionName, groupType)
+      );
     }
   }
 
   return tokens;
+};
+
+/**
+ * The type of the token a reference points at, for an alias token without
+ * `$type`: its own type, the type it inherits from its groups, or the type
+ * of the token it aliases in turn.
+ */
+const getReferencedTokenType = (
+  tokensData: any,
+  reference: string,
+  depth = 0
+): string | null => {
+  if (depth > 10) {
+    return null;
+  }
+
+  let node = tokensData;
+  let inheritedType: string | undefined;
+  for (const segment of referenceBody(reference).split('.')) {
+    if (!node || typeof node !== 'object') {
+      return null;
+    }
+    if (typeof node.$type === 'string' && node.$value === undefined) {
+      inheritedType = node.$type;
+    }
+    node = node[segment];
+  }
+
+  const token =
+    node && node.$value === undefined && node[ROOT_TOKEN_KEY]
+      ? node[ROOT_TOKEN_KEY]
+      : node;
+  if (!token || typeof token !== 'object') {
+    return null;
+  }
+
+  const type = getTokenType(withInheritedType(token, inheritedType));
+  if (type) {
+    return type;
+  }
+
+  const value = getTokenValue(token);
+  return isReference(value)
+    ? getReferencedTokenType(tokensData, value, depth + 1)
+    : null;
 };
 
 /**
@@ -788,7 +859,18 @@ export const tokensToVariables = async (
         }
 
         // Extract all tokens from this collection
-        const tokens = extractTokens(collectionData, [], collectionName);
+        const tokens = extractTokens(collectionData, [], collectionName).map(
+          (entry) => {
+            const value = getTokenValue(entry.token);
+            if (getTokenType(entry.token) || !isReference(value)) {
+              return entry;
+            }
+            const referencedType = getReferencedTokenType(cleanedData, value);
+            return referencedType
+              ? { ...entry, token: { ...entry.token, $type: referencedType } }
+              : entry;
+          }
+        );
 
         // Process tokens and check for modes
         const modesData = new Map<string, Map<string, any>>();

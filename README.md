@@ -118,6 +118,7 @@ The plugin supports both **exporting** and **importing** design tokens:
 
 **What to know before importing:**
 
+- Tokens without their own `$type` take it from the closest group, as DTCG allows; an alias without a type takes the type of the token it references.
 - Every top-level key becomes a collection. Files exported with [Omit collection names](#omit-collection-names) or split by mode don't map back to the original collections.
 - An existing collection's first mode is renamed to the first mode in the tokens.
 - Units are dropped from dimensions, since Figma number variables have no unit: `1rem` imports as `1`.
