@@ -639,3 +639,24 @@ describe('restLineHeightToPlugin', () => {
     expect(style.lineHeight).toEqual({ unit: 'AUTO' });
   });
 });
+
+describe('textNodeToStyle defaults', () => {
+  it('fills in the text case and decoration that REST leaves out', () => {
+    const style = toText({
+      id: '1:2',
+      name: 'Body',
+      style: {
+        fontFamily: 'Roboto',
+        fontStyle: 'Regular',
+        fontWeight: 400,
+        fontSize: 16,
+        letterSpacing: 0,
+        lineHeightUnit: 'PIXELS',
+        lineHeightPx: 20,
+      },
+    });
+
+    expect(style.textCase).toBe('ORIGINAL');
+    expect(style.textDecoration).toBe('NONE');
+  });
+});

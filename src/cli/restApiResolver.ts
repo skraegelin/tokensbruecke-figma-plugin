@@ -426,8 +426,9 @@ export class RestAPIResolver implements IResolver {
       },
       fontSize: node.style.fontSize,
       fontWeight: node.style.fontWeight,
-      textDecoration: node.style.textDecoration,
-      textCase: node.style.textCase,
+      // REST leaves out the defaults, the Plugin API always reports them
+      textDecoration: node.style.textDecoration ?? 'NONE',
+      textCase: node.style.textCase ?? 'ORIGINAL',
       paragraphIndent: node.style.paragraphIndent ?? 0,
       paragraphSpacing: node.style.paragraphSpacing ?? 0,
       listSpacing: node.style.listSpacing,

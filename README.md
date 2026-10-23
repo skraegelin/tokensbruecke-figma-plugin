@@ -575,6 +575,8 @@ The REST API returns variables, collections and styles in no fixed order, so the
 
 In REST mode the CLI exports the file's own styles, published or not, the same set the plugin exports. This also works for a branch, which can't publish styles. Styles that come from a library are left out, as in the plugin.
 
+The REST API reports letter spacing in pixels only, so a text style with percentage letter spacing exports as `{ "value": -0.32, "unit": "px" }` in REST mode, where the plugin writes `"-2%"`. Snapshot mode keeps the plugin's unit.
+
 ### Snapshot input
 
 `--input <path>` transforms a local JSON snapshot of a Figma file's variables and styles instead of calling the REST API. `--input -` reads stdin, so it composes with anything that can dump the data:
