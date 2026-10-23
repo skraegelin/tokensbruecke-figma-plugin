@@ -25,7 +25,7 @@ All of this is in `src/common/`, so it applies equally to plugin, CLI and API. T
 2. `variableTokens = variablesToTokens(variables, collections, config, resolver)` → `{ [collectionName]: nestedTree }`, or a flat nested tree with `omitCollectionNames`
 3. `styleTokens = stylesToTokens(config, resolver)` → array of `{ [customName]: nestedTree }` in the order text, grids, effects, colors
 4. `mergeStylesIntoTokens(variableTokens, styleTokens, storeStyleInCollection)`: `'none'` → style groups become top-level keys; otherwise they are `Object.assign`ed into that collection's group. A missing collection falls back to the top level with a warning, and `omitCollectionNames` always keeps them separate
-5. `meta = { useDTCG, spec?, colorMode, variableCollections: names[], createdAt? }`
+5. `meta = { useDTCG, spec?, colorMode, variableCollections: names[], createdAt? }`; split-by-mode entries add `mode: modeName`, which the import uses
 6. Result shape:
    - **splitByMode** (wins over splitByCollection): `{ "Collection/Mode": tree }`. Mode names come from `$extensions.mode` keys; `applyModeToTokens` replaces each `$value` with that mode's value and drops `$extensions.mode`. A top-level group without modes stays a single `"Collection"` entry. `splitTokensIntoFiles` splits the key at the longest collection name from `meta.variableCollections` (both names may contain `/`), and only falls back to the first `/`. ⚠️ It only finds tokens by the `$value` key, so with `useDTCG: false` nothing is split by mode (documented: "Splitting by mode needs the DTCG format").
    - **splitByCollection**: `{ "Collection": tree }`

@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { IResolver } from '@common/resolver';
 import { tokensToVariables } from './tokensToVariables';
 import { variablesToTokens } from './variablesToTokens';
+import { splitTokensIntoFiles } from './splitTokensIntoFiles';
+import { getTokens } from '@common/export';
+import { defaultConfig } from '@cli/defaults';
 
 /**
  * Minimal in-memory stand-in for the parts of the Figma Plugin API the
@@ -906,5 +909,112 @@ describe('tokensToVariables names with a slash', () => {
       type: 'VARIABLE_ALIAS',
       id: byName('space/1').id,
     });
+  });
+});
+
+describe('tokensToVariables split-by-mode files', () => {
+  let fake: ReturnType<typeof createFakeFigma>;
+
+  beforeEach(() => {
+    fake = createFakeFigma();
+    vi.stubGlobal('figma', fake);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const fileResolver = {
+    getLocalVariableCollections: async () => fake._collections,
+    getLocalVariables: async () => fake._variables,
+  } as unknown as IResolver;
+
+  // Theme/Light.tokens.json and Theme/Dark.tokens.json of a split export
+  const exportFiles = async () => {
+    const collection = {
+      id: 'c1',
+      name: 'Theme',
+      defaultModeId: 'light',
+      modes: [
+        { modeId: 'light', name: 'Light' },
+        { modeId: 'dark', name: 'Dark' },
+      ],
+      variableIds: ['v1'],
+    } as unknown as VariableCollection;
+    const variables = [
+      {
+        id: 'v1',
+        name: 'bg',
+        variableCollectionId: 'c1',
+        resolvedType: 'FLOAT',
+        scopes: ['ALL_SCOPES'],
+        valuesByMode: { light: 1, dark: 2 },
+      },
+    ] as unknown as Variable[];
+    const tokens = await getTokens(
+      {
+        getLocalVariableCollections: async () => [collection],
+        getLocalVariables: async () => variables,
+        getLocalPaintStyles: async () => [],
+        getLocalTextStyles: async () => [],
+        getLocalEffectStyles: async () => [],
+        getLocalGridStyles: async () => [],
+        getVariableById: async () => null,
+        getVariableCollectionById: async () => collection,
+      },
+      { ...defaultConfig, omitCreatedAt: true, splitByMode: true }
+    );
+
+    return Object.fromEntries(
+      splitTokensIntoFiles(tokens, { splitByMode: true }).map((file) => [
+        file.path,
+        JSON.parse(file.content),
+      ])
+    );
+  };
+
+  const valuesOf = (name: string) => {
+    const variable = fake._variables.find((v) => v.name === name);
+    const collection = fake._collections.find(
+      (c) => c.id === variable.variableCollectionId
+    );
+    return Object.fromEntries(
+      collection.modes.map((m: any) => [
+        m.name,
+        variable.valuesByMode[m.modeId],
+      ])
+    );
+  };
+
+  test('writes a mode file into its mode, not the default mode', async () => {
+    const collection = fake.variables.createVariableCollection('Theme');
+    collection.renameMode(collection.modes[0].modeId, 'Light');
+    collection.addMode('Dark');
+    const bg = fake.variables.createVariable('bg', collection, 'FLOAT');
+    bg.setValueForMode(collection.modes[0].modeId, 1);
+    bg.setValueForMode(collection.modes[1].modeId, 0);
+
+    const files = await exportFiles();
+    const result = await tokensToVariables(
+      files['Theme/Dark.tokens.json'],
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(valuesOf('bg')).toEqual({ Light: 1, Dark: 2 });
+  });
+
+  test('builds the modes of a new collection from the mode files', async () => {
+    const files = await exportFiles();
+
+    await tokensToVariables(files['Theme/Dark.tokens.json'], fileResolver);
+    const result = await tokensToVariables(
+      files['Theme/Light.tokens.json'],
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(fake._collections).toHaveLength(1);
+    expect(valuesOf('bg')).toEqual({ Dark: 2, Light: 1 });
   });
 });

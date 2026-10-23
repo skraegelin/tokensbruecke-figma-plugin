@@ -793,11 +793,18 @@ export const tokensToVariables = async (
       }
     });
 
-    // The Figma names of the collections whose token names differ
-    const metaCollectionNames: unknown =
-      tokensData?.$extensions?.['tokens-bruecke-meta']?.variableCollections;
-    const toFigmaCollectionName = (tokenName: string): string =>
-      (Array.isArray(metaCollectionNames) ? metaCollectionNames : []).find(
+    // The meta sits at the root of a file, or inside the collection group
+    // in the files of a split export
+    const metaOf = (collectionData: any) =>
+      collectionData?.$extensions?.['tokens-bruecke-meta'] ??
+      tokensData?.$extensions?.['tokens-bruecke-meta'];
+
+    // The Figma name of a collection whose token name differs
+    const toFigmaCollectionName = (tokenName: string, meta: any): string =>
+      (Array.isArray(meta?.variableCollections)
+        ? meta.variableCollections
+        : []
+      ).find(
         (name) =>
           typeof name === 'string' &&
           name !== tokenName &&
@@ -832,7 +839,12 @@ export const tokensToVariables = async (
     // Process each collection
     for (const [collectionName, collectionData] of collections) {
       try {
-        const figmaCollectionName = toFigmaCollectionName(collectionName);
+        const meta = metaOf(collectionData);
+        const figmaCollectionName = toFigmaCollectionName(collectionName, meta);
+        // A file of a split-by-mode export holds the values of this one mode
+        const fileModeName: string | undefined =
+          typeof meta?.mode === 'string' && meta.mode ? meta.mode : undefined;
+        let isNewCollection = false;
 
         // Check if collection already exists
         let collection =
@@ -845,6 +857,7 @@ export const tokensToVariables = async (
             collection =
               figma.variables.createVariableCollection(figmaCollectionName);
             result.collectionsCreated++;
+            isNewCollection = true;
           } catch (error) {
             result.errors.push(
               `Failed to create collection "${collectionName}": ${error.message}`
@@ -936,6 +949,38 @@ export const tokensToVariables = async (
             await figma.variables.getVariableCollectionByIdAsync(collection.id);
           if (updatedCollection) {
             collection = updatedCollection;
+          }
+        }
+
+        // A split-by-mode file has no mode map: its values belong to the
+        // mode named in the meta, not to the default mode
+        let valueModeId: string | undefined;
+        if (
+          fileModeName &&
+          modesData.size === 0 &&
+          typeof figma !== 'undefined' &&
+          collection
+        ) {
+          try {
+            if (!collection.modes.some((m) => m.name === fileModeName)) {
+              if (isNewCollection) {
+                collection.renameMode(collection.modes[0].modeId, fileModeName);
+              } else {
+                collection.addMode(fileModeName);
+              }
+              collection =
+                (await figma.variables.getVariableCollectionByIdAsync(
+                  collection.id
+                )) ?? collection;
+            }
+            valueModeId = collection.modes.find(
+              (m) => m.name === fileModeName
+            )?.modeId;
+          } catch (error) {
+            result.errors.push(
+              `Failed to create mode "${fileModeName}" in collection "${collectionName}": ${error.message}`
+            );
+            continue;
           }
         }
 
@@ -1060,7 +1105,9 @@ export const tokensToVariables = async (
             if (typeof figma !== 'undefined') {
               // `$value` is the value of the default mode
               const defaultModeId =
-                collection!.defaultModeId ?? collection!.modes[0].modeId;
+                valueModeId ??
+                collection!.defaultModeId ??
+                collection!.modes[0].modeId;
               const figmaValue = convertTokenValueToFigmaValue(
                 tokenValue,
                 tokenType,

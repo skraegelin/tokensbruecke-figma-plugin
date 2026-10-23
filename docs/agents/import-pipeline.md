@@ -23,7 +23,9 @@ for each top-level key (= collection name, object values only):
                                              a "token" has a value ($value|value) AND a determinable type; a token without
                                              $type takes the $type of its closest group, an untyped alias the type of
                                              the token it references; a $value with no type at all is reported as "missing type"
-  modes  = union of $extensions.mode (or extensions.mode) keys, in first-seen order
+  meta   = $extensions['tokens-bruecke-meta'] of the collection group (split files) or of the root
+  modes  = union of $extensions.mode (or extensions.mode) keys, in first-seen order;
+           without them, meta.mode (a split-by-mode file) selects or adds the mode that `$value` is written to
     rename collection.modes[0] to the first mode name; addMode() for the missing ones; re-fetch collection
   PASS 1  for each token:
     type = getTokenType(token)               (missing → error "missing type")
