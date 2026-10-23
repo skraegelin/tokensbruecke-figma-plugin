@@ -430,9 +430,17 @@ export const convertTokenValueToFigmaValue = (
         }
         // DTCG 2025.10 color object: { colorSpace, components, alpha, hex }
         if ('colorSpace' in value) {
-          // Prefer the hex fallback (always emitted by the plugin's DTCG export)
+          // Prefer the hex fallback (always emitted by the plugin's DTCG export).
+          // DTCG keeps it at 6 digits and the opacity in `alpha`; older
+          // exports of this plugin wrote 8 digits instead
           if (typeof value.hex === 'string') {
-            return hexToRgb(value.hex);
+            const rgba = hexToRgb(value.hex);
+            const hasHexAlpha = [4, 8].includes(
+              value.hex.replace(/^#/, '').length
+            );
+            return !hasHexAlpha && typeof value.alpha === 'number'
+              ? { ...rgba, a: value.alpha }
+              : rgba;
           }
           // Otherwise use sRGB components directly (already 0-1)
           if (value.colorSpace === 'srgb' && Array.isArray(value.components)) {

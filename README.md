@@ -144,6 +144,8 @@ Allows you to choose the color mode for the generated JSON. Default value is `HE
 - `HSL DTCG` — HSL color format in object syntax matching the [DTCG specification](https://www.designtokens.org/tr/2025.10/color/#hsl)
 - `OKLCH DTCG` — OKLCH color format in object syntax matching the [DTCG specification](https://www.designtokens.org/tr/2025.10/color/#oklch)
 
+The DTCG color objects carry the opacity in `alpha` and a 6-digit `hex` fallback, as the specification requires. Older exports wrote an 8-digit `hex` for translucent colors; the import reads both.
+
 ### Include styles
 
 Allows you to include styles into the generated JSON. Text, effect, grid and color styles each have their own toggle, and all of them are `off` by default. See more about styles support in the [Styles support](#styles-support) section.
