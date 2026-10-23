@@ -16,7 +16,9 @@ The import is in [src/common/transform/tokensToVariables.ts](../../src/common/tr
 existing collections and variables → variableMap: "Collection/var/name" → Variable
 drop root $extensions
 for each top-level key (= collection name, object values only):
-  find collection by name, or figma.variables.createVariableCollection(name)
+  find collection by name, or figma.variables.createVariableCollection(name); a key that is the toTokenName of a
+  meta.variableCollections entry ("1- Primitives") uses that Figma name ("1. Primitives"); existing variables are
+  mapped under both names
   tokens = extractTokens(group)              recursive; skips $-keys except `$root` (the group's own token), and value/type/description/scopes/extensions only inside a token (in a group they are names); also descends into tokens, for child tokens of older exports; references drop a trailing `.$root`;
                                              a "token" has a value ($value|value) AND a determinable type
   modes  = union of $extensions.mode (or extensions.mode) keys, in first-seen order

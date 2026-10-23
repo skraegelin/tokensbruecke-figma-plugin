@@ -373,3 +373,53 @@ describe('collection and mode names with a slash', () => {
     expect(Object.keys(JSON.parse(files[0].content))).toEqual(['Brand/Core']);
   });
 });
+
+describe('collection names with a dot', () => {
+  const collection = {
+    id: 'c1',
+    name: '1. Primitives',
+    defaultModeId: 'm1',
+    modes: [{ modeId: 'm1', name: 'Value' }],
+    variableIds: ['v1', 'v2'],
+  } as unknown as VariableCollection;
+  const variables = [
+    {
+      id: 'v1',
+      name: 'blue',
+      variableCollectionId: 'c1',
+      resolvedType: 'COLOR',
+      scopes: ['ALL_SCOPES'],
+      valuesByMode: { m1: { r: 0, g: 0, b: 1, a: 1 } },
+    },
+    {
+      id: 'v2',
+      name: 'link',
+      variableCollectionId: 'c1',
+      resolvedType: 'COLOR',
+      scopes: ['ALL_SCOPES'],
+      valuesByMode: { m1: { type: 'VARIABLE_ALIAS', id: 'v1' } },
+    },
+  ] as unknown as Variable[];
+
+  it('uses a DTCG-safe group name and keeps the Figma name in the meta', async () => {
+    const warnings: string[] = [];
+    const tokens = await getTokens(
+      {
+        ...emptyResolver,
+        getLocalVariableCollections: async () => [collection],
+        getLocalVariables: async () => variables,
+        getVariableById: async (id) => variables.find((v) => v.id === id),
+        getVariableCollectionById: async () => collection,
+        warn: (message) => warnings.push(message),
+      },
+      { ...defaultConfig, omitCreatedAt: true }
+    );
+
+    expect(Object.keys(tokens)).toEqual(['1- Primitives', '$extensions']);
+    expect(tokens['1- Primitives'].link.$value).toBe('{1- Primitives.blue}');
+    expect(metaOf(tokens).variableCollections).toEqual(['1. Primitives']);
+    expect(warnings).toEqual([
+      expect.stringContaining('"1. Primitives" is exported as "1- Primitives"'),
+    ]);
+  });
+});

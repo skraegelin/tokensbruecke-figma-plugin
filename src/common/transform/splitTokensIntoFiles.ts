@@ -1,3 +1,5 @@
+import { toTokenName } from './tokenName';
+
 export interface TokenFileI {
   path: string;
   content: string;
@@ -52,7 +54,10 @@ const splitModeKey = (
 ): [string, string | undefined] => {
   const metaNames: unknown =
     modeTokens?.$extensions?.['tokens-bruecke-meta']?.variableCollections;
-  const collectionNames = Array.isArray(metaNames) ? metaNames : [];
+  // The meta keeps the Figma names; the keys use the token names
+  const collectionNames = (Array.isArray(metaNames) ? metaNames : [])
+    .filter((name) => typeof name === 'string')
+    .map(toTokenName);
 
   // A collection with a single mode is not split, so its key has no mode
   if (collectionNames.includes(key)) {

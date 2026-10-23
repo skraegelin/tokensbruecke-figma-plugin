@@ -8,6 +8,7 @@ import {
 } from './color/composeColor';
 import { isOpacityScope } from './opacityScopes';
 import { ROOT_TOKEN_KEY } from './rootTokens';
+import { toTokenName } from './tokenName';
 import { parseDurationToSeconds, parseEasing } from './motion';
 
 interface ImportResult {
@@ -710,11 +711,27 @@ export const tokensToVariables = async (
         (c) => c.id === variable.variableCollectionId
       );
       if (collection) {
-        // Use slash separator to match the path format
-        const fullPath = `${collection.name}/${variable.name}`;
-        variableMap.set(fullPath, variable);
+        // Use slash separator to match the path format. The export writes
+        // the collection under its token name ("1. Primitives" becomes
+        // "1- Primitives"), so the variable is found under both
+        variableMap.set(`${collection.name}/${variable.name}`, variable);
+        variableMap.set(
+          `${toTokenName(collection.name)}/${variable.name}`,
+          variable
+        );
       }
     });
+
+    // The Figma names of the collections whose token names differ
+    const metaCollectionNames: unknown =
+      tokensData?.$extensions?.['tokens-bruecke-meta']?.variableCollections;
+    const toFigmaCollectionName = (tokenName: string): string =>
+      (Array.isArray(metaCollectionNames) ? metaCollectionNames : []).find(
+        (name) =>
+          typeof name === 'string' &&
+          name !== tokenName &&
+          toTokenName(name) === tokenName
+      ) ?? tokenName;
 
     // Remove metadata if present
     const cleanedData = { ...tokensData };
@@ -744,16 +761,18 @@ export const tokensToVariables = async (
     // Process each collection
     for (const [collectionName, collectionData] of collections) {
       try {
+        const figmaCollectionName = toFigmaCollectionName(collectionName);
+
         // Check if collection already exists
-        let collection = existingCollections.find(
-          (c) => c.name === collectionName
-        );
+        let collection =
+          existingCollections.find((c) => c.name === figmaCollectionName) ??
+          existingCollections.find((c) => c.name === collectionName);
 
         // Create collection if it doesn't exist (only possible in plugin context)
         if (!collection && typeof figma !== 'undefined') {
           try {
             collection =
-              figma.variables.createVariableCollection(collectionName);
+              figma.variables.createVariableCollection(figmaCollectionName);
             result.collectionsCreated++;
           } catch (error) {
             result.errors.push(

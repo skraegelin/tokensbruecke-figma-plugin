@@ -1210,6 +1210,8 @@ All aliases are converted into the alias string format from the [Design Tokens s
 }
 ```
 
+References use `.` as separator, so DTCG forbids `.`, `{` and `}` in token and group names. A collection whose name contains them, like `1. Primitives`, is exported as `1- Primitives`, with a warning; the meta keeps the original name, and the [import](#import-json--variables) uses it to recreate the collection under its Figma name.
+
 ### Include `.value` string for aliases
 
 You can switch on the `Include .value string for aliases` option in [the plugin settings](#include-value-string-for-aliases).

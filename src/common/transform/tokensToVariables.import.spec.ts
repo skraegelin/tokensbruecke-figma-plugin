@@ -592,6 +592,32 @@ describe('tokensToVariables references and existing variables', () => {
     });
   });
 
+  test('restores a collection name with a dot from the meta', async () => {
+    const tokens = {
+      '1- Primitives': {
+        blue: { $type: 'color', $value: '#0000ff' },
+        link: { $type: 'color', $value: '{1- Primitives.blue}' },
+      },
+      $extensions: {
+        'tokens-bruecke-meta': { variableCollections: ['1. Primitives'] },
+      },
+    };
+
+    const result = await tokensToVariables(tokens, resolver);
+    expect(result.errors).toEqual([]);
+    expect(fake._collections.map((c) => c.name)).toEqual(['1. Primitives']);
+    expect(defaultValueOf('link')).toEqual({
+      type: 'VARIABLE_ALIAS',
+      id: byName('blue').id,
+    });
+
+    // Importing again updates the same variables
+    const again = await tokensToVariables(tokens, fileResolver);
+    expect(again.errors).toEqual([]);
+    expect(again.variablesUpdated).toBe(2);
+    expect(fake._variables).toHaveLength(2);
+  });
+
   test('still reads tokens in the legacy format', async () => {
     const result = await tokensToVariables(
       {
