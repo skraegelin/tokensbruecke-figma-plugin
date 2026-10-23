@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { gridStylesToTokens } from '@common/transform/styles/gridStylesToTokens';
-import { RestAPIResolver } from './restApiResolver';
+import { RestAPIResolver, restLineHeightToPlugin } from './restApiResolver';
 
 const toPaint = (node: any) =>
   RestAPIResolver.prototype.rectangleNodeToPaint.call(null, node) as any;
@@ -14,7 +14,9 @@ describe('rectangleNodeToPaint', () => {
         {
           type: 'SOLID',
           color: { r: 1, g: 0, b: 0 },
-          boundVariables: { color: { type: 'VARIABLE_ALIAS', id: 'VariableID:3:4' } },
+          boundVariables: {
+            color: { type: 'VARIABLE_ALIAS', id: 'VariableID:3:4' },
+          },
         },
       ],
     });
@@ -596,5 +598,44 @@ describe('grid tokens', () => {
 
     expect(fromRest).toEqual(fromPlugin);
     expect(fromRest.columnCount).not.toBe(-1);
+  });
+});
+
+describe('restLineHeightToPlugin', () => {
+  it.each([
+    [
+      { lineHeightUnit: 'PIXELS', lineHeightPx: 24 },
+      { value: 24, unit: 'PIXELS' },
+    ],
+    [
+      { lineHeightUnit: 'FONT_SIZE_%', lineHeightPercentFontSize: 150 },
+      { value: 150, unit: 'PERCENT' },
+    ],
+    [{ lineHeightUnit: 'FONT_SIZE_%' }, { value: 100, unit: 'PERCENT' }],
+    [{ lineHeightUnit: 'INTRINSIC_%' }, { unit: 'AUTO' }],
+    [
+      { lineHeightUnit: 'INTRINSIC_%', lineHeightPercent: 100 },
+      { unit: 'AUTO' },
+    ],
+  ])('maps %j to %j', (style, expected) => {
+    expect(restLineHeightToPlugin(style)).toEqual(expected);
+  });
+
+  it('exports "Auto" line height as "auto", as the plugin does', () => {
+    const style = toText({
+      id: '1:2',
+      name: 'Body',
+      style: {
+        fontFamily: 'Roboto',
+        fontStyle: 'Regular',
+        fontWeight: 400,
+        fontSize: 16,
+        letterSpacing: 0,
+        lineHeightUnit: 'INTRINSIC_%',
+        lineHeightPx: 18.75,
+      },
+    });
+
+    expect(style.lineHeight).toEqual({ unit: 'AUTO' });
   });
 });

@@ -169,6 +169,29 @@ export const restVariablesToSnapshot = (
   };
 };
 
+/**
+ * REST reports "Auto" line height as `INTRINSIC_%` without a
+ * `lineHeightPercentFontSize` (it is only returned when it isn't 100), so
+ * reading that field gave NaN. The Plugin API has `{ unit: 'AUTO' }` for it.
+ */
+export const restLineHeightToPlugin = (style: {
+  lineHeightUnit?: string;
+  lineHeightPx?: number;
+  lineHeightPercent?: number;
+  lineHeightPercentFontSize?: number;
+}): LineHeight => {
+  if (style.lineHeightUnit === 'PIXELS') {
+    return { value: style.lineHeightPx, unit: 'PIXELS' };
+  }
+  if (
+    style.lineHeightUnit === 'INTRINSIC_%' &&
+    (style.lineHeightPercent ?? 100) === 100
+  ) {
+    return { unit: 'AUTO' };
+  }
+  return { value: style.lineHeightPercentFontSize ?? 100, unit: 'PERCENT' };
+};
+
 export class RestAPIResolver implements IResolver {
   private fileKey: string;
   private api: Api;
@@ -412,13 +435,7 @@ export class RestAPIResolver implements IResolver {
       hangingPunctuation: false, //not in API ?
       leadingTrim: 'NONE', //not in API ?
       letterSpacing: { value: node.style.letterSpacing, unit: 'PIXELS' },
-      lineHeight: {
-        value:
-          node.style.lineHeightUnit == 'PIXELS'
-            ? node.style.lineHeightPx
-            : node.style.lineHeightPercentFontSize,
-        unit: node.style.lineHeightUnit == 'PIXELS' ? 'PIXELS' : 'PERCENT',
-      },
+      lineHeight: restLineHeightToPlugin(node.style),
     } as unknown as TextStyle;
   }
 
