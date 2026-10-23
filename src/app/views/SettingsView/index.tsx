@@ -339,7 +339,15 @@ export const SettingsView = (props: ViewProps) => {
                 pushToJSONBin(
                   JSONsettingsConfig.servers.jsonbin,
                   tokens,
-                  showToast
+                  showToast,
+                  (binId) =>
+                    setJSONsettingsConfig((prev) => ({
+                      ...prev,
+                      servers: {
+                        ...prev.servers,
+                        jsonbin: { ...prev.servers.jsonbin, id: binId },
+                      },
+                    }))
                 )
               );
             }

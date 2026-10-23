@@ -818,7 +818,7 @@ In order to test if your credentials are valid you can make a test request by cl
 
 1. Open [JSONBin](https://jsonbin.io) and create an account.
 2. Generate a [new API key](https://jsonbin.io/api-reference/access-keys/create).
-3. If you want to use an existing bin, copy its ID. Otherwise just leave the ID field empty in the plugin settings.
+3. If you want to use an existing bin, copy its ID. Otherwise just leave the ID field empty in the plugin settings: the first push creates a bin and saves its ID in the field, so later pushes update that bin.
 4. Add a name for the bin.
 
 ![fig.7](readme-assets/fig7.webp)
