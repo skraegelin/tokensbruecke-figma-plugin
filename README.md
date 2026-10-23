@@ -755,7 +755,7 @@ Snapshot mode ignores `FIGMA_API_KEY` / `FIGMA_FILE_KEY`, so a token exported in
 On a bad snapshot the CLI exits `1` and names the offending key — for example `variables[3] is missing a string "variableCollectionId"` — so an agent can correct its dump and retry without guesswork.
 
 > [!NOTE]
-> Aliases pointing at variables outside the snapshot (typically library variables from another file) export as `"#missing#"`, the same as in REST mode. To resolve them, include those variables in the `variables` array and their collections in `variableCollections`.
+> Aliases pointing at variables outside the snapshot export as `"#missing#"`. To resolve aliases to library variables from another file, include those variables in the `variables` array and their collections in `variableCollections`, with `"remote": true`: they resolve the aliases, as in the plugin and in REST mode, but aren't exported.
 
 ---
 
@@ -1289,7 +1289,7 @@ The plugin will generate the alias name anyway, but it will be a path to the var
 }
 ```
 
-The plugin wouldn't include the variable into the generated JSON in order to avoid duplicates or conflicts with JSON files you can generate from another Figma files.
+The plugin wouldn't include the variable into the generated JSON in order to avoid duplicates or conflicts with JSON files you can generate from another Figma files. The CLI and the library API do the same in REST mode. In snapshot mode, add the library variables and their collections with `"remote": true`: they resolve aliases but aren't exported.
 
 So you will need to merge the file with the base variables from one file with another where you use them. Otherwise tools like Style Dictionary wouldn't be able to resolve the aliases.
 

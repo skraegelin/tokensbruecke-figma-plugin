@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gridStylesToTokens } from '@common/transform/styles/gridStylesToTokens';
+import { getTokens } from '@common/export';
+import { defaultConfig } from './defaults';
 import { RestAPIResolver, restLineHeightToPlugin } from './restApiResolver';
 
 const toPaint = (node: any) =>
@@ -658,5 +660,73 @@ describe('textNodeToStyle defaults', () => {
 
     expect(style.textCase).toBe('ORIGINAL');
     expect(style.textDecoration).toBe('NONE');
+  });
+});
+
+describe('library and deleted variables', () => {
+  const collection = (id: string, name: string, extra = {}) => ({
+    id,
+    name,
+    remote: false,
+    hiddenFromPublishing: false,
+    defaultModeId: 'm1',
+    modes: [{ modeId: 'm1', name: 'Value' }],
+    ...extra,
+  });
+  const color = (
+    id: string,
+    name: string,
+    collectionId: string,
+    extra = {}
+  ) => ({
+    id,
+    name,
+    variableCollectionId: collectionId,
+    resolvedType: 'COLOR',
+    scopes: ['ALL_SCOPES'],
+    remote: false,
+    valuesByMode: { m1: { r: 0, g: 0, b: 1, a: 1 } },
+    ...extra,
+  });
+
+  const resolver = () =>
+    resolverWith(
+      {
+        lib: color('lib', 'blue', 'libC', { remote: true }),
+        link: color('link', 'link', 'local', {
+          valuesByMode: { m1: { type: 'VARIABLE_ALIAS', id: 'lib' } },
+        }),
+        old: color('old', 'gone', 'oldC', { deletedButReferenced: true }),
+      },
+      {
+        libC: collection('libC', 'Library', {
+          remote: true,
+          variableIds: ['lib'],
+        }),
+        local: collection('local', 'Semantic', { variableIds: ['link'] }),
+        oldC: collection('oldC', 'Old', {
+          deletedButReferenced: true,
+          variableIds: ['old'],
+        }),
+      }
+    );
+
+  it('resolves aliases to library variables without exporting them', async () => {
+    const tokens = await getTokens(resolver(), {
+      ...defaultConfig,
+      omitCreatedAt: true,
+    });
+
+    expect(tokens.Semantic.link.$value).toBe('{Library.blue}');
+    expect(Object.keys(tokens)).toEqual(['Semantic', '$extensions']);
+    expect(
+      tokens.$extensions['tokens-bruecke-meta'].variableCollections
+    ).toEqual(['Semantic']);
+  });
+
+  it('leaves out deleted collections', async () => {
+    const collections = await resolver().getLocalVariableCollections();
+
+    expect(collections.map((c) => c.name)).toEqual(['Semantic']);
   });
 });
