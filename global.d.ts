@@ -184,6 +184,8 @@ interface MetaPropsI {
   spec?: string;
   colorMode: colorModeType;
   variableCollections: string[] | undefined;
+  // The mode of a split-by-mode file, so the import writes to that mode
+  mode?: string;
   createdAt?: string;
 }
 

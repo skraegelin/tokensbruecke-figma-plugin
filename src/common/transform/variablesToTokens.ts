@@ -5,6 +5,7 @@ import { getTokenKeyName } from './getTokenKeyName';
 
 import { groupObjectNamesIntoCategories } from './groupObjectNamesIntoCategories';
 import { ROOT_TOKEN_KEY } from './rootTokens';
+import { toTokenName } from './tokenName';
 import { IResolver } from '@common/resolver';
 import { warn } from '@common/warn';
 import {
@@ -97,8 +98,15 @@ export const variablesToTokens = async (
 
   // let mergedVariables = {};
   let emptyCollection = collections.map((collection) => {
+    const tokenName = toTokenName(collection.name);
+    if (tokenName !== collection.name && !omitCollectionNames) {
+      warn(
+        resolver,
+        `[tokens-bruecke] Collection "${collection.name}" is exported as "${tokenName}": DTCG names can't contain ".", "{" or "}".`
+      );
+    }
     return {
-      [collection.name]: {},
+      [tokenName]: {},
     };
   });
 
@@ -207,11 +215,11 @@ export const variablesToTokens = async (
 
     // get collection object
     const collectionId = collection.id;
-    const collectionName = collection.name;
+    const collectionName = toTokenName(collection.name);
     const collectionDefaultModeId = collection.defaultModeId;
     const collectionObject = {
       id: collectionId,
-      name: collectionName,
+      name: collection.name,
       defaultModeId: collectionDefaultModeId,
     };
 

@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { IResolver } from '@common/resolver';
 import { tokensToVariables } from './tokensToVariables';
 import { variablesToTokens } from './variablesToTokens';
+import { splitTokensIntoFiles } from './splitTokensIntoFiles';
+import { getTokens } from '@common/export';
+import { defaultConfig } from '@cli/defaults';
 
 /**
  * Minimal in-memory stand-in for the parts of the Figma Plugin API the
@@ -592,6 +595,72 @@ describe('tokensToVariables references and existing variables', () => {
     });
   });
 
+  test('restores a collection name with a dot from the meta', async () => {
+    const tokens = {
+      '1- Primitives': {
+        blue: { $type: 'color', $value: '#0000ff' },
+        link: { $type: 'color', $value: '{1- Primitives.blue}' },
+      },
+      $extensions: {
+        'tokens-bruecke-meta': { variableCollections: ['1. Primitives'] },
+      },
+    };
+
+    const result = await tokensToVariables(tokens, resolver);
+    expect(result.errors).toEqual([]);
+    expect(fake._collections.map((c) => c.name)).toEqual(['1. Primitives']);
+    expect(defaultValueOf('link')).toEqual({
+      type: 'VARIABLE_ALIAS',
+      id: byName('blue').id,
+    });
+
+    // Importing again updates the same variables
+    const again = await tokensToVariables(tokens, fileResolver);
+    expect(again.errors).toEqual([]);
+    expect(again.variablesUpdated).toBe(2);
+    expect(fake._variables).toHaveLength(2);
+  });
+
+  test('takes the type of a token from its groups', async () => {
+    const result = await tokensToVariables(
+      {
+        Core: {
+          color: {
+            $type: 'color',
+            red: { $value: '#ff0000' },
+            brand: { $value: '{Core.color.red}' },
+          },
+          space: {
+            $type: 'dimension',
+            sm: { $value: { value: 4, unit: 'px' } },
+            nested: { md: { $value: { value: 8, unit: 'px' } } },
+          },
+          gap: { $value: '{Core.space.sm}' },
+        },
+      },
+      resolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(byName('color/red').resolvedType).toBe('COLOR');
+    expect(defaultValueOf('color/red')).toEqual({ r: 1, g: 0, b: 0, a: 1 });
+    expect(byName('space/nested/md').resolvedType).toBe('FLOAT');
+    expect(defaultValueOf('space/nested/md')).toBe(8);
+    expect(defaultValueOf('gap')).toEqual({
+      type: 'VARIABLE_ALIAS',
+      id: byName('space/sm').id,
+    });
+  });
+
+  test('reports a token without any type instead of dropping it', async () => {
+    const result = await tokensToVariables(
+      { Core: { size: { $value: { value: 4, unit: 'px' } } } },
+      resolver
+    );
+
+    expect(result.errors).toEqual(['Token at path "size" is missing type']);
+  });
+
   test('still reads tokens in the legacy format', async () => {
     const result = await tokensToVariables(
       {
@@ -840,5 +909,195 @@ describe('tokensToVariables names with a slash', () => {
       type: 'VARIABLE_ALIAS',
       id: byName('space/1').id,
     });
+  });
+});
+
+describe('tokensToVariables split-by-mode files', () => {
+  let fake: ReturnType<typeof createFakeFigma>;
+
+  beforeEach(() => {
+    fake = createFakeFigma();
+    vi.stubGlobal('figma', fake);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const fileResolver = {
+    getLocalVariableCollections: async () => fake._collections,
+    getLocalVariables: async () => fake._variables,
+  } as unknown as IResolver;
+
+  // Theme/Light.tokens.json and Theme/Dark.tokens.json of a split export
+  const exportFiles = async () => {
+    const collection = {
+      id: 'c1',
+      name: 'Theme',
+      defaultModeId: 'light',
+      modes: [
+        { modeId: 'light', name: 'Light' },
+        { modeId: 'dark', name: 'Dark' },
+      ],
+      variableIds: ['v1'],
+    } as unknown as VariableCollection;
+    const variables = [
+      {
+        id: 'v1',
+        name: 'bg',
+        variableCollectionId: 'c1',
+        resolvedType: 'FLOAT',
+        scopes: ['ALL_SCOPES'],
+        valuesByMode: { light: 1, dark: 2 },
+      },
+    ] as unknown as Variable[];
+    const tokens = await getTokens(
+      {
+        getLocalVariableCollections: async () => [collection],
+        getLocalVariables: async () => variables,
+        getLocalPaintStyles: async () => [],
+        getLocalTextStyles: async () => [],
+        getLocalEffectStyles: async () => [],
+        getLocalGridStyles: async () => [],
+        getVariableById: async () => null,
+        getVariableCollectionById: async () => collection,
+      },
+      { ...defaultConfig, omitCreatedAt: true, splitByMode: true }
+    );
+
+    return Object.fromEntries(
+      splitTokensIntoFiles(tokens, { splitByMode: true }).map((file) => [
+        file.path,
+        JSON.parse(file.content),
+      ])
+    );
+  };
+
+  const valuesOf = (name: string) => {
+    const variable = fake._variables.find((v) => v.name === name);
+    const collection = fake._collections.find(
+      (c) => c.id === variable.variableCollectionId
+    );
+    return Object.fromEntries(
+      collection.modes.map((m: any) => [
+        m.name,
+        variable.valuesByMode[m.modeId],
+      ])
+    );
+  };
+
+  test('writes a mode file into its mode, not the default mode', async () => {
+    const collection = fake.variables.createVariableCollection('Theme');
+    collection.renameMode(collection.modes[0].modeId, 'Light');
+    collection.addMode('Dark');
+    const bg = fake.variables.createVariable('bg', collection, 'FLOAT');
+    bg.setValueForMode(collection.modes[0].modeId, 1);
+    bg.setValueForMode(collection.modes[1].modeId, 0);
+
+    const files = await exportFiles();
+    const result = await tokensToVariables(
+      files['Theme/Dark.tokens.json'],
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(valuesOf('bg')).toEqual({ Light: 1, Dark: 2 });
+  });
+
+  test('builds the modes of a new collection from the mode files', async () => {
+    const files = await exportFiles();
+
+    await tokensToVariables(files['Theme/Dark.tokens.json'], fileResolver);
+    const result = await tokensToVariables(
+      files['Theme/Light.tokens.json'],
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(fake._collections).toHaveLength(1);
+    expect(valuesOf('bg')).toEqual({ Dark: 2, Light: 1 });
+  });
+});
+
+describe('tokensToVariables extended collections', () => {
+  let fake: ReturnType<typeof createFakeFigma>;
+
+  beforeEach(() => {
+    fake = createFakeFigma();
+    vi.stubGlobal('figma', fake);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // "Brand B" extends "Theme": it lists the variables of Theme and has its
+  // own mode ids for the inherited modes
+  const setUp = () => {
+    const theme = fake.variables.createVariableCollection('Theme');
+    theme.renameMode(theme.modes[0].modeId, 'Light');
+    const bg = fake.variables.createVariable('bg', theme, 'FLOAT');
+    bg.setValueForMode(theme.modes[0].modeId, 1);
+    const extension = {
+      id: 'VariableCollectionId:ext',
+      name: 'Brand B',
+      isExtension: true,
+      modes: [
+        {
+          modeId: 'ext:light',
+          name: 'Light',
+          parentModeId: theme.modes[0].modeId,
+        },
+      ],
+      defaultModeId: 'ext:light',
+      variableIds: [bg.id],
+    };
+    fake._collections.push(extension);
+    return { theme, bg, extension };
+  };
+
+  const fileResolver = {
+    getLocalVariableCollections: async () => fake._collections,
+    getLocalVariables: async () => fake._variables,
+  } as unknown as IResolver;
+
+  test('writes the values as overrides of the inherited variables', async () => {
+    const { theme, bg } = setUp();
+
+    const result = await tokensToVariables(
+      { 'Brand B': { bg: { $type: 'number', $value: 5 } } },
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.variablesCreated).toBe(0);
+    expect(result.variablesUpdated).toBe(1);
+    expect(fake._variables).toHaveLength(1);
+    expect(bg.valuesByMode['ext:light']).toBe(5);
+    expect(bg.valuesByMode[theme.modes[0].modeId]).toBe(1);
+  });
+
+  test('does not create variables or modes in the extension', async () => {
+    const { extension } = setUp();
+
+    const result = await tokensToVariables(
+      {
+        'Brand B': {
+          extra: {
+            $type: 'number',
+            $value: 2,
+            $extensions: { mode: { Light: 2, Dark: 3 } },
+          },
+        },
+      },
+      fileResolver
+    );
+
+    expect(result.errors).toEqual([
+      'Extended collection "Brand B" has no mode "Dark": its values were skipped. Extended collections inherit their modes from their parent.',
+      'Variable "extra" is not in the extended collection "Brand B": skipped. Add it to the root collection.',
+    ]);
+    expect(fake._variables).toHaveLength(1);
+    expect(extension.modes).toHaveLength(1);
   });
 });

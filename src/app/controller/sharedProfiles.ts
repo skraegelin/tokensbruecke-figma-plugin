@@ -14,8 +14,9 @@ const credentialFields: { [S in ServerType]?: (keyof ServerSettingsI[S])[] } = {
   github: ['token'],
   githubPullRequest: ['token'],
   gitlab: ['token'],
-  // custom headers usually carry an Authorization header
-  customURL: ['headers'],
+  // Custom headers usually carry an Authorization header, and webhook URLs
+  // (Slack, Zapier, deploy hooks, `?token=`) hold the secret in the URL
+  customURL: ['url', 'headers'],
 };
 
 const serverIds = Object.keys(credentialFields) as ServerType[];
@@ -116,21 +117,13 @@ export const unshareProfile = (
   return rest;
 };
 
-const getOrigin = (url: string | undefined) => {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return url ?? '';
-  }
-};
-
 // Where a server sends its credential. GitHub and JSONBin always send it to
-// their own API, so only servers with a configurable host are listed
+// their own API, and the Custom URL is not shared at all, so only GitLab's
+// configurable host is listed
 const credentialTargets: {
   [S in ServerType]?: (server: ServerSettingsI[S]) => string;
 } = {
   gitlab: (server) => normalizeGitlabHost(server?.host).toLowerCase(),
-  customURL: (server) => getOrigin(server?.url),
 };
 
 /**
@@ -183,6 +176,11 @@ export const mergeSharedProfile = (
 
       servers[serverId] = server as never;
     });
+  }
+
+  // Without a URL of its own the Custom URL server can't push
+  if (!servers.customURL?.url) {
+    servers.customURL = { ...servers.customURL, isEnabled: false };
   }
 
   return {
