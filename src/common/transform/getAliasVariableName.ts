@@ -25,7 +25,7 @@ export const getAliasVariableName = async (
   if (!collectionObj) {
     warn(
       resolver,
-      `[tokens-bruecke] Cannot find the collection of variable "${variableObj.name}", so its alias is exported as "#missing#"`
+      `[tokens-bruecke] Cannot find the collection of variable "${variableObj.name}", so its alias is exported as "#missing#" (is the collection hidden from publishing, or in a library?)`
     );
     return '#missing#';
   }
