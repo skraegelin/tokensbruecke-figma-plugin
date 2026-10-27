@@ -67,11 +67,11 @@ Figma changes value shapes over time (see composed colors: `{ color, opacity }` 
 1. **Credentials type:** `global.d.ts` → a `XCredentialsI` interface (with `isEnabled: boolean`) and an entry in `ServerSettingsI` (the key is the server id, e.g. `bitbucket`).
 2. **Defaults:** `controller/storageConfig.ts` → `servers.bitbucket` in `createDefaultJSONSettingsConfig()` **and** a deep-merge line in `sanitizeProfileConfig` (copy the `gitlab` lines).
 3. **Implementation:** `src/app/api/servers/pushToBitbucket.ts` with the signature `(credentials, tokens, toastCallback, splitOptions?)`. Use `splitTokensIntoFiles(tokens, splitOptions, credentials.fileName)` if the server stores files, and report success or failure through `toastCallback({ title, message, options: { type } })`. Never let it throw unhandled: `SettingsView` awaits each server in turn.
-4. **Form:** `ServerSettingsView/index.tsx` → a `viewsConfig.bitbucket` entry (`title`, `description` with a docs link, `fields[]` with `id`, `placeholder`, `type: 'input'`, `required`, default `value`).
+4. **Form:** `ServerSettingsView/providers.tsx` → a `providers.bitbucket` entry: `title`, a one-sentence `description`, `fields[]` (`id`, `kind`, `label`, `required`, `isAdvanced` for optional extras, `hint`, `link` for "Create token ↗", `validate`), `toForm`/`toStorage` (map to the stored credentials; keep `toStorage(toForm(stored))` lossless and add that to `providers.spec.ts`), and a `getServerSummary` case. For a read-only connection check, add a branch in `api/servers/testConnection.ts`, set `canTestConnection: true` and cover it in `testConnection.spec.ts`.
 5. **Wiring in `SettingsView/index.tsx`:** add an entry to `serverList` (`id`, `label`, `iconName`, which must exist in react-figma-ui's `Icon`. A `customIcon` would also need changes at the two places that render `serverList`: the server rows (`<Icon name={server.iconName} />`) and the `OverlayList` options), an `if (server.includes('bitbucket'))` block in the `setTokens`/`push` handler with `track('/push/bitbucket')`, and a `currentView === 'bitbucket'` branch in `selectRender`.
 6. **Network:** `manifest.json` already allows `*`.
 7. **Docs:** README "Push to server" (a section + the list at the top), the "Privacy and analytics" event list.
-8. **Test** by hand (see [testing.md](testing.md#manual-testing-in-figma)); servers have no automated tests.
+8. **Test** by hand (see [testing.md](testing.md#manual-testing-in-figma)); only the form config and the connection test have specs, the push itself and the views don't.
 
 ## Add a plugin message
 

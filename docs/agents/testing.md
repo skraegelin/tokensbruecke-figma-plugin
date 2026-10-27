@@ -21,8 +21,9 @@ pnpm test:watch                                  # watch mode: don't start it fr
 | Import             | `tokensToVariables.spec.ts` (pure helpers), `tokensToVariables.import.spec.ts` (full import against a fake `figma`)                                                                                                                                                                                     |
 | CLI                | `options.spec.ts`, `fileResolver.spec.ts`, `restApiResolver.spec.ts`, `init.spec.ts`, `prompt.spec.ts`, `updateCheck.spec.ts`                                                                                                                                                                           |
 | Library API        | `api/index.spec.ts`                                                                                                                                                                                                                                                                                     |
+| Plugin helpers     | `app/api/servers/gitlabProject.spec.ts` (host, project id, GitLab push URLs), `repository.spec.ts` (pasted repository/project URLs), `testConnection.spec.ts` (with a stubbed `fetch`), `app/views/ServerSettingsView/providers.spec.ts` (stored settings round trip, validation, summaries)            |
 
-**Not covered:** everything in `src/app/` (React views, controller message handling, `storageConfig.ts`, the push servers, download/import helpers) and `textStylesToTokens.ts` on its own. Check changes there by hand in Figma (below), and say in your report that this was not covered by automated tests.
+**Not covered:** the rest of `src/app/` (React views, controller message handling, `storageConfig.ts`, the push servers apart from GitLab's URLs, download/import helpers) and `textStylesToTokens.ts` on its own. Check changes there by hand in Figma (below), and say in your report that this was not covered by automated tests.
 
 ## Patterns
 
