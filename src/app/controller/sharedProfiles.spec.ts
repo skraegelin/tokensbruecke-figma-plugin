@@ -70,6 +70,18 @@ describe('stripCredentials', () => {
     expect(stripped.servers.customURL.headers).toBe('');
   });
 
+  it('removes the Custom URL, which can hold a webhook secret', () => {
+    const profile = profileWithCredentials();
+    profile.servers.customURL.url =
+      'https://hooks.slack.com/services/T000/B000/secret';
+    const stripped = stripCredentials(profile);
+
+    expect(stripped.servers.customURL.url).toBe('');
+    expect(stripped.servers.customURL.method).toBe(
+      profile.servers.customURL.method
+    );
+  });
+
   it('keeps the settings and server targets', () => {
     const stripped = stripCredentials(profileWithCredentials());
 
@@ -82,9 +94,6 @@ describe('stripCredentials', () => {
       fileName: 'tokens.json',
     });
     expect(stripped.servers.gitlab.host).toBe('gitlab.acme.dev');
-    expect(stripped.servers.customURL.url).toBe(
-      'https://tokens.acme.dev/upload'
-    );
   });
 
   it('drops the local link to a shared profile', () => {
@@ -200,17 +209,10 @@ describe('mergeSharedProfile', () => {
       servers: {
         ...base.servers,
         gitlab: { ...base.servers.gitlab, isEnabled: true, host: 'evil.dev' },
-        customURL: {
-          ...base.servers.customURL,
-          url: 'https://evil.dev/collect',
-        },
       },
     });
 
-    expect(getChangedServerTargets(local, shared)).toEqual([
-      'gitlab',
-      'customURL',
-    ]);
+    expect(getChangedServerTargets(local, shared)).toEqual(['gitlab']);
 
     const merged = mergeSharedProfile(local, shared, 'shared-1');
 
@@ -220,16 +222,12 @@ describe('mergeSharedProfile', () => {
       token: '',
       isEnabled: false,
     });
-    expect(merged.servers.customURL).toMatchObject({
-      headers: '',
-      isEnabled: false,
-    });
     // Servers with a fixed API host keep their credential
     expect(merged.servers.github.token).toBe('ghp_secret');
     expect(merged.servers.jsonbin.secretKey).toBe('jsonbin-secret');
   });
 
-  it('keeps a credential when only the path or the host spelling changes', () => {
+  it('keeps a credential when only the host spelling changes', () => {
     const local = profileWithCredentials();
     const base = profileWithCredentials();
     const shared = stripCredentials({
@@ -237,10 +235,6 @@ describe('mergeSharedProfile', () => {
       servers: {
         ...base.servers,
         gitlab: { ...base.servers.gitlab, host: 'https://GitLab.acme.dev/' },
-        customURL: {
-          ...base.servers.customURL,
-          url: 'https://tokens.acme.dev/v2/upload',
-        },
       },
     });
 
@@ -273,5 +267,25 @@ describe('mergeSharedProfile', () => {
     expect(merged.profileName).toBe('Web');
     expect(merged.servers.github.token).toBe('');
     expect(merged.sharedUpdatedAt).toBe(7);
+  });
+
+  it('keeps the local Custom URL and turns the server off without one', () => {
+    const shared = stripCredentials(profileWithCredentials());
+
+    const updated = mergeSharedProfile(
+      profileWithCredentials(),
+      shared,
+      'shared-1'
+    );
+    const adopted = mergeSharedProfile(undefined, shared, 'shared-1');
+
+    expect(updated.servers.customURL).toMatchObject({
+      url: 'https://tokens.acme.dev/upload',
+      isEnabled: true,
+    });
+    expect(adopted.servers.customURL).toMatchObject({
+      url: '',
+      isEnabled: false,
+    });
   });
 });

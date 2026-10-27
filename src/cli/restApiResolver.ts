@@ -3,11 +3,13 @@ import { TextNode, type LocalVariable } from '@figma/rest-api-spec';
 type LocalVariableCollection = {
   remote: boolean;
   hiddenFromPublishing: boolean;
+  deletedButReferenced?: boolean;
   [key: string]: any;
 };
 import { IResolver } from '@common/resolver';
 import { Api } from 'figma-api';
 import { log as defaultLog, type LogFn } from './logger';
+import { isLocal } from './fileResolver';
 
 /**
  * The REST API does not return variables, collections, the `variableIds` of
@@ -104,11 +106,12 @@ export interface LocalVariablesMeta {
 }
 
 /**
- * Drops what the file does not own (library variables and collections,
- * deleted variables) and maps the REST scopes to the Plugin API ones, so the
- * REST response looks like the local variables of the file. Collections
- * hidden from publishing stay, as in the plugin: they usually hold the
- * primitives that the published collections alias.
+ * Drops deleted variables and collections and maps the REST scopes to the
+ * Plugin API ones, so the REST response looks like the variables the plugin
+ * sees. Library (`remote`) variables and collections stay: aliases to them
+ * resolve as in the plugin, but `isLocal` keeps them out of the export.
+ * Collections hidden from publishing stay too, as in the plugin: they
+ * usually hold the primitives that the published collections alias.
  */
 export const normalizeLocalVariables = ({
   variables,
@@ -121,7 +124,7 @@ export const normalizeLocalVariables = ({
     Object.entries(variables)
       .filter(
         ([_, variable]: [string, LocalVariable]) =>
-          !variable.remote && !variable.deletedButReferenced // exclude deleted variables https://forum.figma.com/ask-the-community-7/rest-api-variables-35406?tid=35406&fid=7
+          !variable.deletedButReferenced // exclude deleted variables https://forum.figma.com/ask-the-community-7/rest-api-variables-35406?tid=35406&fid=7
       )
       .map(([id, variable]: [string, LocalVariable]) => [
         id,
@@ -130,7 +133,8 @@ export const normalizeLocalVariables = ({
   ) as Record<string, Variable>,
   variableCollections: Object.fromEntries(
     Object.entries(variableCollections).filter(
-      ([_, collection]: [string, LocalVariableCollection]) => !collection.remote
+      ([_, collection]: [string, LocalVariableCollection]) =>
+        !collection.deletedButReferenced
     )
   ) as Record<string, VariableCollection>,
 });
@@ -167,6 +171,29 @@ export const restVariablesToSnapshot = (
       variables
     ),
   };
+};
+
+/**
+ * REST reports "Auto" line height as `INTRINSIC_%` without a
+ * `lineHeightPercentFontSize` (it is only returned when it isn't 100), so
+ * reading that field gave NaN. The Plugin API has `{ unit: 'AUTO' }` for it.
+ */
+export const restLineHeightToPlugin = (style: {
+  lineHeightUnit?: string;
+  lineHeightPx?: number;
+  lineHeightPercent?: number;
+  lineHeightPercentFontSize?: number;
+}): LineHeight => {
+  if (style.lineHeightUnit === 'PIXELS') {
+    return { value: style.lineHeightPx, unit: 'PIXELS' };
+  }
+  if (
+    style.lineHeightUnit === 'INTRINSIC_%' &&
+    (style.lineHeightPercent ?? 100) === 100
+  ) {
+    return { unit: 'AUTO' };
+  }
+  return { value: style.lineHeightPercentFontSize ?? 100, unit: 'PERCENT' };
 };
 
 export class RestAPIResolver implements IResolver {
@@ -217,8 +244,8 @@ export class RestAPIResolver implements IResolver {
             this.variableCollections = variableCollections;
             this.log(
               '✅ Found %d local variables in %d collections',
-              Object.keys(this.variables).length,
-              Object.keys(this.variableCollections).length
+              Object.values(this.variables).filter(isLocal).length,
+              Object.values(this.variableCollections).filter(isLocal).length
             );
           })
           .catch((error) => {
@@ -296,14 +323,14 @@ export class RestAPIResolver implements IResolver {
   async getLocalVariableCollections(): Promise<VariableCollection[]> {
     await this.fetchLocalVariables();
     return sortCollections(
-      Object.values(this.variableCollections),
+      Object.values(this.variableCollections).filter(isLocal),
       this.variables
     );
   }
 
   async getLocalVariables(): Promise<Variable[]> {
     await this.fetchLocalVariables();
-    return Object.values(this.variables).sort(byNameThenId);
+    return Object.values(this.variables).filter(isLocal).sort(byNameThenId);
   }
 
   async getLocalGridStyles(): Promise<GridStyle[]> {
@@ -403,8 +430,9 @@ export class RestAPIResolver implements IResolver {
       },
       fontSize: node.style.fontSize,
       fontWeight: node.style.fontWeight,
-      textDecoration: node.style.textDecoration,
-      textCase: node.style.textCase,
+      // REST leaves out the defaults, the Plugin API always reports them
+      textDecoration: node.style.textDecoration ?? 'NONE',
+      textCase: node.style.textCase ?? 'ORIGINAL',
       paragraphIndent: node.style.paragraphIndent ?? 0,
       paragraphSpacing: node.style.paragraphSpacing ?? 0,
       listSpacing: node.style.listSpacing,
@@ -412,13 +440,7 @@ export class RestAPIResolver implements IResolver {
       hangingPunctuation: false, //not in API ?
       leadingTrim: 'NONE', //not in API ?
       letterSpacing: { value: node.style.letterSpacing, unit: 'PIXELS' },
-      lineHeight: {
-        value:
-          node.style.lineHeightUnit == 'PIXELS'
-            ? node.style.lineHeightPx
-            : node.style.lineHeightPercentFontSize,
-        unit: node.style.lineHeightUnit == 'PIXELS' ? 'PIXELS' : 'PERCENT',
-      },
+      lineHeight: restLineHeightToPlugin(node.style),
     } as unknown as TextStyle;
   }
 

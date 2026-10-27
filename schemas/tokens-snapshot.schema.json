@@ -12,12 +12,12 @@
     },
     "variableCollections": {
       "type": "array",
-      "description": "Local variable collections, as returned by figma.variables.getLocalVariableCollectionsAsync(). Exclude remote (library) collections.",
+      "description": "Local variable collections, as returned by figma.variables.getLocalVariableCollectionsAsync(). Library collections with remote: true only resolve aliases and are not exported.",
       "items": { "$ref": "#/definitions/variableCollection" }
     },
     "variables": {
       "type": "array",
-      "description": "Local variables, as returned by figma.variables.getLocalVariablesAsync(). Exclude remote (library) variables.",
+      "description": "Local variables, as returned by figma.variables.getLocalVariablesAsync(). Library variables with remote: true only resolve aliases and are not exported.",
       "items": { "$ref": "#/definitions/variable" }
     },
     "paintStyles": {
@@ -148,7 +148,7 @@
         },
         "remote": {
           "type": "boolean",
-          "description": "Should be false. Remote (library) variables are not resolved; aliases to them export as \"#missing#\" unless the variable is also in the snapshot."
+          "description": "true for a library variable or collection. It is only used to resolve aliases and is not exported. Aliases to variables missing from the snapshot export as \"#missing#\"."
         }
       }
     },

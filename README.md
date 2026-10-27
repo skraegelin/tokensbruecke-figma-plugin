@@ -118,10 +118,12 @@ The plugin supports both **exporting** and **importing** design tokens:
 
 **What to know before importing:**
 
-- Every top-level key becomes a collection. Files exported with [Omit collection names](#omit-collection-names) or split by mode don't map back to the original collections.
+- Tokens without their own `$type` take it from the closest group, as DTCG allows; an alias without a type takes the type of the token it references.
+- Every top-level key becomes a collection. Files exported with [Omit collection names](#omit-collection-names) don't map back to the original collections.
+- A file of a [split-by-mode export](#split-modes-into-separate-files) carries its mode in the meta, so its values go into that mode of the collection, which is added if it's missing. Import the files one by one; the first one imported into a new collection becomes its default mode.
 - An existing collection's first mode is renamed to the first mode in the tokens.
 - Units are dropped from dimensions, since Figma number variables have no unit: `1rem` imports as `1`.
-- Extended collections are imported as regular collections.
+- Extended collections are imported as regular collections when they don't exist in the file yet. If the extended collection exists, its tokens update the variables it inherits: the values become overrides for its modes. New variables and modes can't be added to an extended collection, so those tokens are reported as errors.
 - An existing variable keeps its type. A token of another type, for example a `dimension` token for a color variable, is skipped and listed in the import result.
 
 > [!WARNING]  
@@ -143,6 +145,8 @@ Allows you to choose the color mode for the generated JSON. Default value is `HE
 - `HSLA Object` — HSLA color format in object syntax, e.g. `{ h: 0, s: 0, l: 0, a: 0.5 }`.
 - `HSL DTCG` — HSL color format in object syntax matching the [DTCG specification](https://www.designtokens.org/tr/2025.10/color/#hsl)
 - `OKLCH DTCG` — OKLCH color format in object syntax matching the [DTCG specification](https://www.designtokens.org/tr/2025.10/color/#oklch)
+
+The DTCG color objects carry the opacity in `alpha` and a 6-digit `hex` fallback, as the specification requires. Older exports wrote an 8-digit `hex` for translucent colors; the import reads both.
 
 ### Include styles
 
@@ -571,6 +575,8 @@ The REST API returns variables, collections and styles in no fixed order, so the
 
 In REST mode the CLI exports the file's own styles, published or not, the same set the plugin exports. This also works for a branch, which can't publish styles. Styles that come from a library are left out, as in the plugin.
 
+The REST API reports letter spacing in pixels only, so a text style with percentage letter spacing exports as `{ "value": -0.32, "unit": "px" }` in REST mode, where the plugin writes `"-2%"`. Snapshot mode keeps the plugin's unit.
+
 ### Snapshot input
 
 `--input <path>` transforms a local JSON snapshot of a Figma file's variables and styles instead of calling the REST API. `--input -` reads stdin, so it composes with anything that can dump the data:
@@ -749,7 +755,7 @@ Snapshot mode ignores `FIGMA_API_KEY` / `FIGMA_FILE_KEY`, so a token exported in
 On a bad snapshot the CLI exits `1` and names the offending key — for example `variables[3] is missing a string "variableCollectionId"` — so an agent can correct its dump and retry without guesswork.
 
 > [!NOTE]
-> Aliases pointing at variables outside the snapshot (typically library variables from another file) export as `"#missing#"`, the same as in REST mode. To resolve them, include those variables in the `variables` array and their collections in `variableCollections`.
+> Aliases pointing at variables outside the snapshot export as `"#missing#"`. To resolve aliases to library variables from another file, include those variables in the `variables` array and their collections in `variableCollections`, with `"remote": true`: they resolve the aliases, as in the plugin and in REST mode, but aren't exported.
 
 ---
 
@@ -936,9 +942,9 @@ The plugin supports multiple named profiles. Each profile stores its own complet
 
 Profiles are stored on your machine. To hand your settings to others, for example developers in [Dev Mode](#dev-mode), open the profile with `⋮` and click **Share in this file**.
 
-- The profile is saved in the Figma file, without any credentials: tokens, access keys and Custom URL headers are removed. Everything else is shared, including repository, branch, file name and the Custom URL itself, so don't put secrets in the URL.
+- The profile is saved in the Figma file, without any credentials: tokens, access keys, the Custom URL and its headers are removed, because webhook URLs often carry their secret in the URL. Everything else is shared, including repository, branch, file name and the Custom URL method. Each developer enters the Custom URL themselves; until then that server stays off.
 - Everyone who runs the plugin on the file sees it in the profile dropdown under **Shared in this file**. Picking it creates a local copy. Add your own token in the server settings before you push.
-- When the shared profile changes, the local copy shows **Update**. Updating takes the settings from the file and keeps your credentials and profile name. If the update points GitLab or the Custom URL to another host, your credential for that server is removed and the server is turned off, so a changed file can't send your token somewhere else. Check the host and add the credential again.
+- When the shared profile changes, the local copy shows **Update**. Updating takes the settings from the file and keeps your credentials and profile name. If the update points GitLab to another host, your GitLab token is removed and the server is turned off, so a changed file can't send your token somewhere else. Check the host and add the credential again.
 - **Update shared profile** and **Stop sharing** change the profile for everyone who uses the file.
 
 ---
@@ -989,7 +995,7 @@ A style the plugin can't export, such as an image fill or a color style with sev
 
 ### Colors
 
-The plugin supports solid colors and gradients (linear, radial, angular, diamond). Color styles are converted to DTCG format with support for variable aliases.
+The plugin supports solid colors and gradients (linear, radial, angular, diamond). Color styles are converted to DTCG format with support for variable aliases. A solid style bound to a color variable with its own opacity below 100% is exported like a [color alias with opacity](#color-aliases-with-opacity): `{ "components": "{color.brand}", "alpha": 0.5 }`.
 
 ```json
 // Solid color
@@ -1213,6 +1219,8 @@ All aliases are converted into the alias string format from the [Design Tokens s
 }
 ```
 
+References use `.` as separator, so DTCG forbids `.`, `{` and `}` in token and group names. A collection whose name contains them, like `1. Primitives`, is exported as `1- Primitives`, with a warning; the meta keeps the original name, and the [import](#import-json--variables) uses it to recreate the collection under its Figma name.
+
 ### Include `.value` string for aliases
 
 You can switch on the `Include .value string for aliases` option in [the plugin settings](#include-value-string-for-aliases).
@@ -1286,7 +1294,7 @@ The plugin will generate the alias name anyway, but it will be a path to the var
 }
 ```
 
-The plugin wouldn't include the variable into the generated JSON in order to avoid duplicates or conflicts with JSON files you can generate from another Figma files.
+The plugin wouldn't include the variable into the generated JSON in order to avoid duplicates or conflicts with JSON files you can generate from another Figma files. The CLI and the library API do the same in REST mode. In snapshot mode, add the library variables and their collections with `"remote": true`: they resolve aliases but aren't exported.
 
 So you will need to merge the file with the base variables from one file with another where you use them. Otherwise tools like Style Dictionary wouldn't be able to resolve the aliases.
 

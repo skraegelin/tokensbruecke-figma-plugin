@@ -174,6 +174,35 @@ describe('style aliases', () => {
     );
   });
 
+  it('keep the paint opacity of a color style bound to a variable', async () => {
+    const translucent: IResolver = {
+      ...resolver,
+      getLocalPaintStyles: async () =>
+        [
+          {
+            id: 'S:1',
+            name: 'brand',
+            paints: [
+              { type: 'SOLID', color: { r: 0, g: 0, b: 0 }, opacity: 0.5 },
+            ],
+            boundVariables: { paints: [alias] },
+          },
+        ] as unknown as PaintStyle[],
+    };
+
+    const tokens = await getTokens(translucent, config);
+    const percent = await getTokens(translucent, {
+      ...config,
+      usePercentageOpacity: true,
+    });
+
+    expect(tokens['Color-styles'].brand.$value).toEqual({
+      components: '{Core.color.brand}',
+      alpha: 0.5,
+    });
+    expect(percent['Color-styles'].brand.$value.alpha).toBe('50%');
+  });
+
   it('leave the collection name out with omitCollectionNames, like variable aliases', async () => {
     const tokens = await getTokens(resolver, {
       ...config,
@@ -342,5 +371,55 @@ describe('collection and mode names with a slash', () => {
       'out/Brand-Core.tokens.json',
     ]);
     expect(Object.keys(JSON.parse(files[0].content))).toEqual(['Brand/Core']);
+  });
+});
+
+describe('collection names with a dot', () => {
+  const collection = {
+    id: 'c1',
+    name: '1. Primitives',
+    defaultModeId: 'm1',
+    modes: [{ modeId: 'm1', name: 'Value' }],
+    variableIds: ['v1', 'v2'],
+  } as unknown as VariableCollection;
+  const variables = [
+    {
+      id: 'v1',
+      name: 'blue',
+      variableCollectionId: 'c1',
+      resolvedType: 'COLOR',
+      scopes: ['ALL_SCOPES'],
+      valuesByMode: { m1: { r: 0, g: 0, b: 1, a: 1 } },
+    },
+    {
+      id: 'v2',
+      name: 'link',
+      variableCollectionId: 'c1',
+      resolvedType: 'COLOR',
+      scopes: ['ALL_SCOPES'],
+      valuesByMode: { m1: { type: 'VARIABLE_ALIAS', id: 'v1' } },
+    },
+  ] as unknown as Variable[];
+
+  it('uses a DTCG-safe group name and keeps the Figma name in the meta', async () => {
+    const warnings: string[] = [];
+    const tokens = await getTokens(
+      {
+        ...emptyResolver,
+        getLocalVariableCollections: async () => [collection],
+        getLocalVariables: async () => variables,
+        getVariableById: async (id) => variables.find((v) => v.id === id),
+        getVariableCollectionById: async () => collection,
+        warn: (message) => warnings.push(message),
+      },
+      { ...defaultConfig, omitCreatedAt: true }
+    );
+
+    expect(Object.keys(tokens)).toEqual(['1- Primitives', '$extensions']);
+    expect(tokens['1- Primitives'].link.$value).toBe('{1- Primitives.blue}');
+    expect(metaOf(tokens).variableCollections).toEqual(['1. Primitives']);
+    expect(warnings).toEqual([
+      expect.stringContaining('"1. Primitives" is exported as "1- Primitives"'),
+    ]);
   });
 });

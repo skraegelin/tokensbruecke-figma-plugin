@@ -126,7 +126,9 @@ export const getTokens = async (
           const modeTokens = applyModeToTokens(collectionTokens, modeName);
           result[`${collectionName}/${modeName}`] = {
             ...modeTokens,
-            $extensions: { 'tokens-bruecke-meta': metaData },
+            $extensions: {
+              'tokens-bruecke-meta': { ...metaData, mode: modeName },
+            },
           };
         }
       }
