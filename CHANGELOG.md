@@ -1,3 +1,85 @@
+## [3.25.0](https://github.com/tokens-bruecke/figma-plugin/compare/v3.24.0...v3.25.0) (2026-11-04)
+
+### Features
+
+- **plugin:** the GitHub, GitHub PR, GitLab, JSONBin and Custom URL settings have visible labels, helper text under the fields that need it, and validation. Tokens and keys are masked, and optional fields sit under **More options** ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6)) ([6a7accc](https://github.com/tokens-bruecke/figma-plugin/commit/6a7accc204fbfc08af661ec7c75616aab267515e))
+- **plugin:** **Test connection** checks the token, repository and branch of GitHub, GitHub PR and GitLab with read-only requests, and shows a problem at the field it belongs to ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+- **plugin:** GitHub takes `owner/repository` or a pasted repository URL. GitLab takes the project URL, including self-managed hosts, subgroups and SSH clone URLs. A URL that points at a branch fills in the branch ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+- **plugin:** the server list shows where each server pushes to, e.g. `acme/tokens · main`, and a click opens its settings ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+- **plugin:** a JSONBin push with an empty Bin ID creates a bin and saves its ID, so later pushes update the same bin ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+
+### Behaviour changes
+
+- **plugin:** leaving server settings with unsaved changes asks to save or discard them, and **Remove** asks for confirmation before it deletes the server's settings and secret ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([abd62fc](https://github.com/tokens-bruecke/figma-plugin/commit/abd62fcb34c504719ddf6598bc6d71daf4531255))
+- **plugin:** with "Split collections" or "Split modes" on, the file path field is labelled **Folder**
+
+### Bug Fixes
+
+- **plugin:** JSONBin errors show the reason JSONBin sends instead of an empty status ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+- **plugin:** toasts spell GitHub and GitLab correctly, and info toasts are tinted so they stand out from the panel ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([9c9136e](https://github.com/tokens-bruecke/figma-plugin/commit/9c9136e1b483a3416caa3367e459a92d18fa1299)) ([8b197d8](https://github.com/tokens-bruecke/figma-plugin/commit/8b197d86e7cab09f5ccc9c385be60325ca9ad62f))
+
+### Documentation
+
+- **docs:** the Push to server page describes the new fields ([#146](https://github.com/tokens-bruecke/figma-plugin/issues/146)) ([171d7ce](https://github.com/tokens-bruecke/figma-plugin/commit/171d7ce406b852f4d0ff48d8bcf7cdc527c9b6b6))
+
+Thanks to [@skraegelin](https://github.com/skraegelin) for [#146](https://github.com/tokens-bruecke/figma-plugin/pull/146).
+
+## [3.24.0](https://github.com/tokens-bruecke/figma-plugin/compare/v3.23.1...v3.24.0) (2026-11-02)
+
+### Features
+
+- **export:** with "Include Figma metadata" on, exported styles carry `$extensions.figma.styleId` ([#138](https://github.com/tokens-bruecke/figma-plugin/issues/138)) ([d879673](https://github.com/tokens-bruecke/figma-plugin/commit/d8796735b8e05f321292258bd05d3fe88bfe6357))
+- **export:** with "Include Figma metadata" on, a color style with several paints lists all of them, bottom to top, in `$extensions.figma.paints` (type, visibility, opacity, blend mode, and the color, gradient stops or image hash) ([#138](https://github.com/tokens-bruecke/figma-plugin/issues/138)) ([7707a77](https://github.com/tokens-bruecke/figma-plugin/commit/7707a77d0cc0652b70485ae9409cb520300d9390))
+
+### Behaviour changes
+
+- **export:** a color style with several paints takes its `$value` from the top visible solid or gradient paint, as Figma draws it. With metadata off, the export warns about the paints it left out.
+
+### Bug Fixes
+
+- **export:** color aliases with opacity keep their Figma metadata ([#138](https://github.com/tokens-bruecke/figma-plugin/issues/138)) ([c3020d2](https://github.com/tokens-bruecke/figma-plugin/commit/c3020d2fb4ef9448d2eacd2f0d8f3186b8e0d341))
+
+Thanks to [@sojotype](https://github.com/sojotype) for [#138](https://github.com/tokens-bruecke/figma-plugin/pull/138).
+
+## [3.23.1](https://github.com/tokens-bruecke/figma-plugin/compare/v3.23.0...v3.23.1) (2026-10-28)
+
+### Documentation
+
+- **docs:** the documentation moved from the README to a site, [tokens-bruecke.github.io/figma-plugin](https://tokens-bruecke.github.io/figma-plugin/), with screenshots of the current plugin in light and dark and pages for Dev Mode and shared profiles ([#139](https://github.com/tokens-bruecke/figma-plugin/issues/139)) ([13518a4](https://github.com/tokens-bruecke/figma-plugin/commit/13518a47ea95df85f7390ba5e8006fa8101c12fb))
+- **plugin:** the Documentation link opens the docs site. **cli:** `--help` links to the CLI docs ([#139](https://github.com/tokens-bruecke/figma-plugin/issues/139)) ([13518a4](https://github.com/tokens-bruecke/figma-plugin/commit/13518a47ea95df85f7390ba5e8006fa8101c12fb))
+- **docs:** the site publishes `llms.txt`, `llms-full.txt` and `llms-small.txt` for AI agents, and the `llms.txt` in the npm package points to them ([#142](https://github.com/tokens-bruecke/figma-plugin/issues/142)) ([19f2ed6](https://github.com/tokens-bruecke/figma-plugin/commit/19f2ed689f8baffa9982a66b4368bfeac1cce630))
+
+### Bug Fixes
+
+- **plugin:** align the shared profile Update banner with the panel ([#144](https://github.com/tokens-bruecke/figma-plugin/issues/144)) ([986828e](https://github.com/tokens-bruecke/figma-plugin/commit/986828e3d462d7f9e1fb97c0dc7306dfe5f48184))
+
+## [3.23.0](https://github.com/tokens-bruecke/figma-plugin/compare/v3.22.0...v3.23.0) (2026-10-28)
+
+### Features
+
+- **plugin:** run in Dev Mode and share profiles in the file without credentials ([2bf5332](https://github.com/tokens-bruecke/figma-plugin/commit/2bf53328d3f6ae106dff61806ce39ed3c6b48139))
+
+### Bug Fixes
+
+- **plugin:** align the shared-profile note with the buttons and make it easier to read ([9dd7ad1](https://github.com/tokens-bruecke/figma-plugin/commit/9dd7ad199ddd9c8565645b7d2fb5d41e66d3c281))
+- **plugin:** never share the Custom URL, link shared profiles after saving ([d35e5e7](https://github.com/tokens-bruecke/figma-plugin/commit/d35e5e77f0538587f55951ba32e48abba2b1e645))
+
+## [3.22.0](https://github.com/tokens-bruecke/figma-plugin/compare/v3.21.0...v3.22.0) (2026-10-28)
+
+### Behaviour changes
+
+- **export:** with DTCG on, a variable named like a group of other variables (`border/brand` next to `border/brand/subtle`) becomes the group's `$root` token, and aliases to it end in `.$root` (DTCG 2025.10 §6.2). The import reads both this and the old shape.
+- **export:** `.`, `{` and `}` in a collection name become `-` in its token key (`1. Primitives` → `1- Primitives`), with a warning. The meta keeps the Figma name, so the import maps it back.
+- **export:** the `hex` fallback of DTCG color objects has 6 digits; the opacity is only in `alpha`. The import still reads 8-digit values.
+- **export:** opacity tokens carry `$extensions.figmaScopes` when `includeScopes` is off, so they import as percentages again.
+- **cli:** REST mode exports collections hidden from publishing, as the plugin does.
+
+### Bug Fixes
+
+- **export:** fix export, import and REST-mode issues found in real files ([#135](https://github.com/tokens-bruecke/figma-plugin/issues/135)) ([6fe1936](https://github.com/tokens-bruecke/figma-plugin/commit/6fe1936d5b038a69d41cd74dbb41092ee9eb1fa9))
+
+Thanks to [@skraegelin](https://github.com/skraegelin) for [#135](https://github.com/tokens-bruecke/figma-plugin/pull/135).
+
 ## [3.21.0](https://github.com/tokens-bruecke/figma-plugin/compare/v3.20.0...v3.21.0) (2026-10-27)
 
 ### Features

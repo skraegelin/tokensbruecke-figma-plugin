@@ -327,7 +327,8 @@ const toOpacityPercent = (value: any): number => {
 /**
  * A color value exported from a Figma color alias with its own opacity:
  * `{ components: "{color.brand}", alpha: 0.5 }` or a color object whose
- * `alpha` / `a` is a reference. See "Color aliases with opacity" in README.
+ * `alpha` / `a` is a reference. See "Color aliases with opacity" in
+ * https://tokens-bruecke.github.io/figma-plugin/reference/aliases/
  */
 export const isComposedColorToken = (value: any): boolean =>
   typeof value === 'object' &&
@@ -797,7 +798,7 @@ export const tokensToVariables = async (
     // to its root collection. Its tokens update those variables, with the
     // values written as overrides for the extension's modes
     existingCollections
-      .filter((collection) => (collection as any).isExtension)
+      .filter((collection) => collection.isExtension)
       .forEach((extension) => {
         extension.variableIds?.forEach((variableId) => {
           const variable = existingVariables.find((v) => v.id === variableId);
@@ -926,7 +927,7 @@ export const tokensToVariables = async (
 
         // An extended collection inherits its modes: they can't be renamed
         // or added, so the tokens have to use the existing mode names
-        const isExtension = (collection as any).isExtension === true;
+        const isExtension = collection.isExtension === true;
         const missingModes = [
           ...Array.from(modesData.keys()),
           ...(fileModeName ? [fileModeName] : []),

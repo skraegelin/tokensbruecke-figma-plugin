@@ -11,8 +11,9 @@ import {
   unshareProfile,
 } from './sharedProfiles';
 
-// The credential values below, not the field names like `secretKey`
-const credentialValues = /ghp_|glpat_|jsonbin-secret|Bearer/;
+// The credential values below, not the field names like `secretKey`. The
+// Custom URL counts too: webhook URLs often carry their secret
+const credentialValues = /ghp_|glpat_|jsonbin-secret|Bearer|tokens\.acme\.dev/;
 
 const profileWithCredentials = (): SettingsProfileI => {
   const profile = createProfileFromConfig('Web', {} as JSONSettingsConfigI);
@@ -59,7 +60,7 @@ const profileWithCredentials = (): SettingsProfileI => {
 };
 
 describe('stripCredentials', () => {
-  it('removes every token, key and custom header', () => {
+  it('removes every token, key, Custom URL and custom header', () => {
     const stripped = stripCredentials(profileWithCredentials());
 
     expect(JSON.stringify(stripped)).not.toMatch(credentialValues);
@@ -67,6 +68,7 @@ describe('stripCredentials', () => {
     expect(stripped.servers.github.token).toBe('');
     expect(stripped.servers.githubPullRequest.token).toBe('');
     expect(stripped.servers.gitlab.token).toBe('');
+    expect(stripped.servers.customURL.url).toBe('');
     expect(stripped.servers.customURL.headers).toBe('');
   });
 
@@ -94,6 +96,7 @@ describe('stripCredentials', () => {
       fileName: 'tokens.json',
     });
     expect(stripped.servers.gitlab.host).toBe('gitlab.acme.dev');
+    expect(stripped.servers.customURL.method).toBe('POST');
   });
 
   it('drops the local link to a shared profile', () => {
@@ -194,9 +197,11 @@ describe('mergeSharedProfile', () => {
     expect(merged.colorMode).toBe('rgba-object');
     expect(merged.profileName).toBe('Web');
     expect(merged.servers.github.token).toBe('ghp_secret');
-    expect(merged.servers.customURL.headers).toBe(
-      '{"Authorization":"Bearer secret"}'
-    );
+    expect(merged.servers.customURL).toMatchObject({
+      isEnabled: true,
+      url: 'https://tokens.acme.dev/upload',
+      headers: '{"Authorization":"Bearer secret"}',
+    });
     expect(merged.sharedId).toBe('shared-1');
     expect(merged.sharedUpdatedAt).toBe(99);
   });
@@ -242,9 +247,23 @@ describe('mergeSharedProfile', () => {
 
     expect(getChangedServerTargets(local, shared)).toEqual([]);
     expect(merged.servers.gitlab.token).toBe('glpat_secret');
-    expect(merged.servers.customURL.headers).toBe(
-      '{"Authorization":"Bearer secret"}'
-    );
+  });
+
+  it('never takes a Custom URL from the file', () => {
+    const local = profileWithCredentials();
+    const base = profileWithCredentials();
+    // A file written by another plugin version could still hold a URL
+    const shared = {
+      ...base,
+      servers: {
+        ...base.servers,
+        customURL: { ...base.servers.customURL, url: 'https://evil.dev/x' },
+      },
+    };
+
+    const merged = mergeSharedProfile(local, shared, 'shared-1');
+
+    expect(merged.servers.customURL.url).toBe('https://tokens.acme.dev/upload');
   });
 
   it('treats an empty GitLab host as gitlab.com', () => {
@@ -266,6 +285,11 @@ describe('mergeSharedProfile', () => {
 
     expect(merged.profileName).toBe('Web');
     expect(merged.servers.github.token).toBe('');
+    // No URL until the developer enters one, so the server stays off
+    expect(merged.servers.customURL).toMatchObject({
+      url: '',
+      isEnabled: false,
+    });
     expect(merged.sharedUpdatedAt).toBe(7);
   });
 
