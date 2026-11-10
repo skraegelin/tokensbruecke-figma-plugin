@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Instructions for AI coding agents (Claude Code, Codex, Cursor, Copilot, Gemini, …) working on this repository. Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md). End-user docs: [README.md](README.md).
+Instructions for AI coding agents (Claude Code, Codex, Cursor, Copilot, Gemini, …) working on this repository. Human contributors: see [CONTRIBUTING.md](CONTRIBUTING.md). End-user docs: the [documentation site](https://tokens-bruecke.github.io/figma-plugin/), with its source in [docs/src/content/docs/](docs/src/content/docs/).
 
 ## What this repository is
 
@@ -66,7 +66,10 @@ schemas/                   JSON Schemas: CLI config (cli-options) and snapshot i
 examples/                  cli-options.json, tokens-snapshot.json (used by tests!), sample token files
 skills/tokens-bruecke/     Agent skill for *using* the CLI (shipped in the npm package)
 llms.txt                   LLM entry point for *using* the CLI (shipped in the npm package)
-docs/agents/               Deep-dive docs for *developing* this repo (not shipped)
+docs/                      Documentation site (Astro Starlight, own package.json), published to GitHub Pages by docs.yml
+  src/content/docs/        The user-facing pages (plugin, CLI, library, reference)
+  screenshots/             Harness that renders the plugin UI for the docs screenshots
+  agents/                  Deep-dive docs for *developing* this repo (not part of the site, not shipped)
 ```
 
 Path aliases (tsconfig, webpack and vitest): `@common/*`, `@app/*`, `@cli/*`, `@root/*`. If you add an alias, add it to all four files: [tsconfig.base.json](tsconfig.base.json), [webpack.config.js](webpack.config.js), [webpack.config.cli.js](webpack.config.cli.js) and [vitest.config.ts](vitest.config.ts).
@@ -95,7 +98,7 @@ Path aliases (tsconfig, webpack and vitest): `@common/*`, `@app/*`, `@cli/*`, `@
 7. **The manifest uses `"documentAccess": "dynamic-page"`**, so use only the async Plugin API variants (`getLocalVariablesAsync`, `getVariableByIdAsync`, `getLocalPaintStylesAsync`, …). The sync versions throw.
 8. **CLI stdout belongs to the JSON.** In `src/cli/`, log progress with `log()` from `logger.ts` (stderr, silenced by `--quiet`) and errors with `console.error`. Never use `console.log` on the export path. The library API (`src/api`) must not log, exit or read env vars: inject `silentLog`, and pass `onWarning` (default: ignore) as the resolver's `warn`.
 9. **The plugin also runs in Dev Mode** (`editorType: ["figma", "dev"]`), where every document write throws, even for users with edit access. Only the import may write to the document, and it is hidden there (`canImportTokens`). Writing pluginData is allowed. The UI must work in a user-sized panel (`isPanelLayout`); don't rely on `figma.ui.resize` there. See [plugin-ui.md](docs/agents/plugin-ui.md).
-10. **Privacy:** analytics (`src/app/api/analytics.ts`) may only send fixed event paths, never token data, names, URLs or credentials. A new event must be added to the "Privacy and analytics" list in README.md.
+10. **Privacy:** analytics (`src/app/api/analytics.ts`) may only send fixed event paths, never token data, names, URLs or credentials. A new event must be added to the "Privacy and analytics" list in `docs/src/content/docs/privacy.md`.
 
 ### Export settings live in many places
 
@@ -106,12 +109,12 @@ An export option (a field of `ExportSettingsI`) must be added or changed in **al
 - `src/cli/defaults.ts` → `defaultConfig` (CLI + API defaults)
 - `src/app/controller/storageConfig.ts` → `createDefaultJSONSettingsConfig` (plugin defaults, plus migration in `sanitizeProfileConfig`)
 - `schemas/cli-options.schema.json` (with `default` and `description`)
-- `README.md`, `skills/tokens-bruecke/SKILL.md`, `llms.txt` (if CLI-relevant)
+- the docs pages (`plugin/settings.mdx` or `plugin/advanced-settings.mdx`, and `cli/options.md` for the config file example, in `docs/src/content/docs/`), `skills/tokens-bruecke/SKILL.md`, `llms.txt` (if CLI-relevant)
 - the UI toggle (`AdvancedSettingsView` or `SettingsView`) and, if it is a flag, `src/cli/index.ts` + `src/cli/options.ts`
 
 ### Documentation must stay in sync
 
-User-facing behaviour is documented in **README.md**, **skills/tokens-bruecke/SKILL.md**, **llms.txt** and the **schemas/**. Upstream feature commits update them in the same commit as the code. Do the same. **Never edit CHANGELOG.md by hand**: CI generates it from Conventional Commits at release time. If you change something these docs/agents files describe, update them too.
+User-facing behaviour is documented on the **docs site** (`docs/src/content/docs/`), in **skills/tokens-bruecke/SKILL.md**, **llms.txt** and the **schemas/**. Upstream feature commits update them in the same commit as the code. Do the same. README.md is only a short overview that links to the site; touch it only if the overview or its link table changes. The site build also generates `llms-full.txt` and `llms-small.txt` from the pages. To preview the site, or to regenerate screenshots after a UI change, see [CONTRIBUTING.md](CONTRIBUTING.md). **Never edit CHANGELOG.md by hand**: CI generates it from Conventional Commits at release time. If you change something these docs/agents files describe, update them too.
 
 ## Code conventions
 
@@ -136,5 +139,5 @@ User-facing behaviour is documented in **README.md**, **skills/tokens-bruecke/SK
 2. `npx tsc -p tsconfig.cli.json --noEmit` and `npx tsc -p tsconfig.plugin.json --noEmit`: no errors.
 3. `pnpm run build`: succeeds (the two webpack size warnings are expected).
 4. Prettier on the files you touched.
-5. Docs updated (README / SKILL.md / llms.txt / schemas / docs/agents) where behaviour changed.
+5. Docs updated (docs site pages / SKILL.md / llms.txt / schemas / docs/agents) where behaviour changed.
 6. For UI or sandbox changes, which have no automated tests: say that it needs a manual check in Figma and describe the steps (see [testing.md](docs/agents/testing.md#manual-testing-in-figma)).

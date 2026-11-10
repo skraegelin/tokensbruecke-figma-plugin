@@ -174,9 +174,10 @@ export const SettingsView = (props: ViewProps) => {
     multiTenantConfig.profiles[multiTenantConfig.activeProfileId];
   const activeSharedProfile =
     activeProfile?.sharedId && sharedProfiles[activeProfile.sharedId];
+  // Not `>`: the timestamps come from the clocks of different people
   const hasSharedProfileUpdate =
     !!activeSharedProfile &&
-    activeSharedProfile.updatedAt > (activeProfile.sharedUpdatedAt ?? 0);
+    activeSharedProfile.updatedAt !== activeProfile.sharedUpdatedAt;
 
   const serversHeaderRef = React.useRef(null);
 
@@ -375,7 +376,7 @@ export const SettingsView = (props: ViewProps) => {
 
             if (server.includes('githubPullRequest')) {
               track('/push/github-pull-request');
-              await runPush('Github', () =>
+              await runPush('Github PR', () =>
                 githubPullRequest(
                   JSONsettingsConfig.servers.githubPullRequest,
                   tokens,
@@ -549,13 +550,12 @@ export const SettingsView = (props: ViewProps) => {
 
         {hasSharedProfileUpdate && (
           <Stack
-            hasLeftRightPadding
             hasTopBottomPadding
             direction="row"
             gap="var(--space-extra-small)"
-            className={styles.rowItem}
+            className={styles.sharedUpdate}
           >
-            <Text className={styles.rowItemText}>
+            <Text className={styles.sharedUpdateText}>
               The shared profile changed in this file.
             </Text>
             <Button

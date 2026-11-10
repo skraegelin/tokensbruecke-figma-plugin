@@ -89,7 +89,7 @@ When you change the export, keep these working (there are tests for most):
 - composed colors: `{ components, alpha }` ↔ `{ color, opacity }`
 - aliases: `{Collection.a.b}` ↔ `Collection/a/b` in `variableMap`
 
-These don't round-trip (they are documented as limitations in the README): exports with `omitCollectionNames` or `splitByMode` (top-level keys no longer match the collections), extended collections (imported as plain collections), units other than px, and style tokens.
+These don't round-trip (they are documented as limitations in [export-and-import.mdx](../src/content/docs/getting-started/export-and-import.mdx)): exports with `omitCollectionNames` or `splitByMode` (top-level keys no longer match the collections), extended collections (imported as plain collections), units other than px, and style tokens.
 
 ## Things to watch
 

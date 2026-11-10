@@ -1,6 +1,6 @@
 # Export pipeline (Figma → tokens)
 
-All of this is in `src/common/`, so it applies equally to plugin, CLI and API. The user-facing description is in [README.md](../../README.md). This file is the implementation map: which function decides what, and where to change it.
+All of this is in `src/common/`, so it applies equally to plugin, CLI and API. The user-facing description is on the docs site, mainly [advanced-settings.mdx](../src/content/docs/plugin/advanced-settings.mdx) and the [reference pages](../src/content/docs/reference/). This file is the implementation map: which function decides what, and where to change it.
 
 ## Settings (`ExportSettingsI`, global.d.ts)
 
