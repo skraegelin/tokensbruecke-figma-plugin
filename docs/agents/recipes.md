@@ -15,7 +15,7 @@ Example: a boolean `fooBar`, default `false`, that changes how values are export
 7. **UI:** add a toggle to `toggleItems` in `src/app/views/AdvancedSettingsView/index.tsx`, or to the main panel in `SettingsView` for prominent options.
 8. **CLI flag** (only for options people switch per run): see [Add a CLI flag](#add-a-cli-flag).
 9. **Schema:** `schemas/cli-options.schema.json` → a property with `type`, `default`, `description` (`additionalProperties` is `false`, so editors reject unknown keys).
-10. **Docs:** README ("General settings" section + the commented example in "CLI Configuration File" + the TOC), `skills/tokens-bruecke/SKILL.md` ("Key options"), `llms.txt` if relevant.
+10. **Docs:** a section in `plugin/advanced-settings.mdx` (or `plugin/settings.mdx` for a main-panel option), the commented example in "CLI Configuration File" in `cli/options.md` (both under `docs/src/content/docs/`), `skills/tokens-bruecke/SKILL.md` ("Key options"), `llms.txt` if relevant.
 11. **Tests:** both values of the option in the transform's spec; `options.spec.ts` if precedence matters.
 
 ## Add a CLI flag
@@ -23,23 +23,23 @@ Example: a boolean `fooBar`, default `false`, that changes how values are export
 1. `src/cli/index.ts`: `.option('foo-bar', { global: false, description, type })`. Keep `global: false` so it stays out of `init --help`. It is automatically also `FIGMA_FOO_BAR`.
 2. If it overrides an export setting: add it to `CliOverrides` and `resolveExportOptions` in `src/cli/options.ts` (`overrides.fooBar ?? config.fooBar ?? defaultConfig.fooBar`), and pass `argv['foo-bar']` where `resolveExportOptions` is called. Don't give the yargs option a `default`, or it would always override the config file.
 3. Validation belongs in the second `.check()` (output-related) or the first (input/auth).
-4. Tests in `options.spec.ts`. Docs: the README options table, the SKILL.md flags table, llms.txt.
+4. Tests in `options.spec.ts`. Docs: the options table in `docs/src/content/docs/cli/options.md`, the SKILL.md flags table, llms.txt.
 
 ## Add a color mode
 
 1. `global.d.ts` → `colorModeType` union; `api.d.ts` → `ColorMode` union.
 2. `src/common/transform/color/convertRGBA.ts`: a converter function plus a `case` in `convertRGBA`. Input is normalized 0..255 integers with alpha rounded to 2 decimals.
 3. `src/common/transform/color/composeColor.ts`: if the new mode returns an object, add it to `DTCG_COLOR_MODES` (alpha key `alpha`) or `OBJECT_COLOR_MODES` (alpha key `a`).
-4. Import: `convertTokenValueToFigmaValue` in `tokensToVariables.ts` must parse it, or the README must say it can't be imported (as for HSLA). DTCG objects with a `hex` fallback are imported through `hex` for free.
+4. Import: `convertTokenValueToFigmaValue` in `tokensToVariables.ts` must parse it, or `getting-started/export-and-import.mdx` must say it can't be imported (as for HSLA). DTCG objects with a `hex` fallback are imported through `hex` for free.
 5. UI: an option in the "Color mode" `Dropdown` in `SettingsView` (grouped sections). CLI init: `COLOR_MODES` in `src/cli/init.ts`.
-6. Schema enum (`colorMode`), README "Color mode" list, the SKILL.md `colorMode` list, the comment in the README config example.
+6. Schema enum (`colorMode`), the "Color mode" list in `plugin/settings.mdx`, the color mode list in `cli/overview.md`, the comment in the config example in `cli/options.md`, the SKILL.md `colorMode` list.
 7. Tests: `normalizeValue.spec.ts` (`getColor` block), import tests, and `src/cli/init.spec.ts`, whose tests pin the color-mode choice indexes (`'8'` is `oklch-dtcg`, `'9'` is out of range).
 
 ## Change how a variable type is exported
 
 1. Type: `normalizeType.ts`. Value: `normalizeValue.ts` (keep the `throw` for unknown shapes).
 2. Import: `getTokenType`, `mapTokenTypeToFigmaType` and `convertTokenValueToFigmaValue` in `tokensToVariables.ts`. If the new `$type` can't identify the Figma type on its own, add an `$extensions.figmaType` marker as is done for EASING.
-3. README "Variables types conversion" and "Scopes limitations" tables.
+3. The "Variables types conversion" and "Scopes limitations" tables in `docs/src/content/docs/reference/types.md`.
 4. Tests: export and round trip.
 
 ## Support a new Figma value shape
@@ -49,7 +49,7 @@ Figma changes value shapes over time (see composed colors: `{ color, opacity }` 
 1. Write a type guard for **each** shape (`isComposedColorObject`, `isComposedColorExpression`) and a union guard.
 2. Normalize every shape into one internal representation (`getComposedColorParts`) and throw `Unsupported … value: <JSON>` for anything else, so the variable is skipped with a warning rather than crashing the export.
 3. On import, try the current shape first and fall back to the old one. Check that the value actually stuck.
-4. Document both shapes in the README and in `schemas/tokens-snapshot.schema.json` (snapshot users pass Plugin API values through verbatim).
+4. Document both shapes in "Snapshot shape" in `docs/src/content/docs/cli/options.md` and in `schemas/tokens-snapshot.schema.json` (snapshot users pass Plugin API values through verbatim).
 5. Add a `[tokens-bruecke]` warning path and a test for an unknown shape.
 
 ## Add a style property, or a new style type
@@ -60,7 +60,7 @@ Figma changes value shapes over time (see composed colors: `{ color, opacity }` 
   2. Defaults in `cli/defaults.ts` and `controller/storageConfig.ts`.
   3. A new `IResolver.getLocalXStyles()` → implement it in `PluginAPIResolver`, `RestAPIResolver` (the `fetchStyleNodes` style-type union + node conversion), `FileResolver` (`TokensSnapshotI`, `STYLE_KEYS`, snapshot validation) and `createExtensionResolver`. Also update the full `IResolver` stub `emptyResolver` in `src/common/export.spec.ts`: specs are type-checked by `tsconfig.cli.json`.
   4. A converter plus a call in `stylesToTokens.ts`.
-  5. UI `stylesList` in `SettingsView`; `STYLE_CHOICES` **and** `buildConfig` (writes `includedStyles` per type) in `cli/init.ts`, plus the choice-index tests in `init.spec.ts`; both schemas; README "Styles support"; SKILL.md, including its snapshot dump snippet.
+  5. UI `stylesList` in `SettingsView`; `STYLE_CHOICES` **and** `buildConfig` (writes `includedStyles` per type) in `cli/init.ts`, plus the choice-index tests in `init.spec.ts`; both schemas; `docs/src/content/docs/reference/styles.md`; SKILL.md, including its snapshot dump snippet.
 
 ## Add a push server
 
@@ -70,7 +70,7 @@ Figma changes value shapes over time (see composed colors: `{ color, opacity }` 
 4. **Form:** `ServerSettingsView/providers.tsx` → a `providers.bitbucket` entry: `title`, a one-sentence `description`, `fields[]` (`id`, `kind`, `label`, `required`, `isAdvanced` for optional extras, `hint`, `link` for "Create token ↗", `validate`), `toForm`/`toStorage` (map to the stored credentials; keep `toStorage(toForm(stored))` lossless and add that to `providers.spec.ts`), and a `getServerSummary` case. For a read-only connection check, add a branch in `api/servers/testConnection.ts`, set `canTestConnection: true` and cover it in `testConnection.spec.ts`.
 5. **Wiring in `SettingsView/index.tsx`:** add an entry to `serverList` (`id`, `label`, `iconName`, which must exist in react-figma-ui's `Icon`. A `customIcon` would also need changes at the two places that render `serverList`: the server rows (`<Icon name={server.iconName} />`) and the `OverlayList` options), an `if (server.includes('bitbucket'))` block in the `setTokens`/`push` handler with `track('/push/bitbucket')`, and a `currentView === 'bitbucket'` branch in `selectRender`.
 6. **Network:** `manifest.json` already allows `*`.
-7. **Docs:** README "Push to server" (a section + the list at the top), the "Privacy and analytics" event list.
+7. **Docs:** a section in `docs/src/content/docs/plugin/push-to-server.mdx` (plus a screenshot scene in `docs/screenshots/scenes.mjs`), the event list in `privacy.md`.
 8. **Test** by hand (see [testing.md](testing.md#manual-testing-in-figma)); only the form config and the connection test have specs, the push itself and the views don't.
 
 ## Add a plugin message
@@ -86,7 +86,7 @@ Implement it in `PluginAPIResolver` (`src/app/api/pluginApiResolver.ts`, async `
 
 ## Add an analytics event
 
-`track('/fixed/path')` from the UI only, with a constant string and no data. Add the event to the README "Privacy and analytics" list in the same commit.
+`track('/fixed/path')` from the UI only, with a constant string and no data. Add the event to the "Privacy and analytics" list in `docs/src/content/docs/privacy.md` in the same commit.
 
 ## Prepare a release (upstream maintainers only)
 

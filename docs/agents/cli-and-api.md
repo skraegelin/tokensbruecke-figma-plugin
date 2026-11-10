@@ -1,6 +1,6 @@
 # CLI and library API
 
-The user-facing reference is [skills/tokens-bruecke/SKILL.md](../../skills/tokens-bruecke/SKILL.md) and the README section "Use as cli tool". This file covers the implementation.
+The user-facing reference is [skills/tokens-bruecke/SKILL.md](../../skills/tokens-bruecke/SKILL.md) and the CLI pages of the docs site (`docs/src/content/docs/cli/`). This file covers the implementation.
 
 ## CLI (src/cli/)
 
